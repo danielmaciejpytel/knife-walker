@@ -56,5 +56,5 @@
         "temp/": true,
         "Temp/": true
     },
-    "dotnet.defaultSolution": "knife-walker.sln"
+    "dotnet.defaultSolution": "knife-walker.slnx"
 }
