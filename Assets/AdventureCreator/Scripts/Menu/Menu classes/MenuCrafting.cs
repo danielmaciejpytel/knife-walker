@@ -114,6 +114,7 @@ namespace AC
 				for (int i = 0; i < uiSlots.Length; i++)
 				{
 					uiSlots[i] = new UISlot (_element.uiSlots[i]);
+					uiSlots[i].uiButton = null;
 				}
 			}
 
@@ -376,7 +377,7 @@ namespace AC
 		{
 			for (int i = 0; i < uiSlots.Length; i++)
 			{
-				if (uiSlots[i].uiButton && uiSlots[i].uiButton == gameObject)
+				if (uiSlots[i].uiButton && uiSlots[i].uiButton.gameObject == gameObject)
 				{
 					return i;
 				}

@@ -103,7 +103,8 @@ namespace AC
 				EditorGUILayout.BeginHorizontal ();
 				
 				string buttonLabel = option.ID + ": " + option.label;
-				if (option.label == "")
+				if (buttonLabel.Length > 40) buttonLabel = buttonLabel.Substring (0, 40) + "...";
+				if (string.IsNullOrEmpty (option.label))
 				{
 					buttonLabel += "(Untitled)";	
 				}
@@ -208,7 +209,7 @@ namespace AC
 				EditorGUILayout.EndHorizontal ();
 			}
 
-			option.cursorIcon.ShowGUI (false, true, "Icon texture:", CursorRendering.Software, "", "The icon to display in DialogList menu elements");
+			option.cursorIcon.ShowGUI (CursorIconBase.IncludeSize.No, true, "Icon texture:", CursorRendering.Software, "", "The icon to display in DialogList menu elements");
 
 			option.isOn = CustomGUILayout.Toggle ("Is enabled?", option.isOn, "", "If True, the option is enabled, and will be displayed in a MenuDialogList element");
 			if (source == InteractionSource.CustomScript)

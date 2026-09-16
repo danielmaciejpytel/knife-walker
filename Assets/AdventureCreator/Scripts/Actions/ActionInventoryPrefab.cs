@@ -63,51 +63,51 @@ namespace AC
 		public override string Description { get { return "Spawns the prefab associated with a given Inventory item into the scene, or takes an item in the scene and adds it to the Inventory"; } }
 
 
-		public override void AssignValues (List<ActionParameter> parameters)
+		public override void AssignValues(List<ActionParameter> parameters)
 		{
 			if (method == Method.ItemToScene)
 			{
-				invID = AssignInvItemID (parameters, invParameterID, invID);
-				runtimeSpawnedObjectParameter = GetParameterWithID (parameters, spawnedObjectParameterID);
+				invID = AssignInvItemID(parameters, invParameterID, invID);
+				runtimeSpawnedObjectParameter = GetParameterWithID(parameters, spawnedObjectParameterID);
 
 				if (itemSpawnMethod == ItemSpawnMethod.SpecificItem)
 				{
 					if (itemSource == ItemSource.PlayerInventory)
 					{
-						playerID = AssignInteger (parameters, playerIDParameterID, playerID);
+						playerID = AssignInteger(parameters, playerIDParameterID, playerID);
 					}
 					else if (itemSource == ItemSource.Container)
 					{
-						runtimeContainer = AssignFile (parameters, containerParameterID, containerConstantID, container);
+						runtimeContainer = AssignFile(parameters, containerParameterID, containerConstantID, container);
 					}
 				}
 			}
 			else if (method == Method.SceneToItem)
 			{
-				runtimeSceneItem = AssignFile<SceneItem> (parameters, sceneItemParameterID, sceneItemConstantID, sceneItem);
-				runtimeNewItemParameter = GetParameterWithID (parameters, newItemParameterID);
+				runtimeSceneItem = AssignFile<SceneItem>(parameters, sceneItemParameterID, sceneItemConstantID, sceneItem);
+				runtimeNewItemParameter = GetParameterWithID(parameters, newItemParameterID);
 
 				if (itemSource == ItemSource.PlayerInventory)
 				{
-					playerID = AssignInteger (parameters, playerIDParameterID, playerID);
+					playerID = AssignInteger(parameters, playerIDParameterID, playerID);
 				}
 				else if (itemSource == ItemSource.Container)
 				{
-					runtimeContainer = AssignFile (parameters, containerParameterID, containerConstantID, container);
+					runtimeContainer = AssignFile(parameters, containerParameterID, containerConstantID, container);
 				}
 			}
 		}
 
 
-		public override float Run ()
+		public override float Run()
 		{
 			switch (method)
 			{
 				case Method.ItemToScene:
-					return RunItemToScene ();
+					return RunItemToScene();
 
 				case Method.SceneToItem:
-					return RunSceneToItem ();
+					return RunSceneToItem();
 
 				default:
 					return 0f;
@@ -115,7 +115,7 @@ namespace AC
 		}
 
 
-		private float RunItemToScene ()
+		private float RunItemToScene()
 		{
 			InvInstance invInstance = null;
 
@@ -123,7 +123,7 @@ namespace AC
 			{
 				case ItemSpawnMethod.SpecificItem:
 
-					invInstance = GetItemToSpawn ();
+					invInstance = GetItemToSpawn();
 					break;
 
 				case ItemSpawnMethod.LastSelectedItem:
@@ -131,27 +131,27 @@ namespace AC
 					break;
 			}
 
-			if (!InvInstance.IsValid (invInstance))
+			if (!InvInstance.IsValid(invInstance))
 			{
 				return 0f;
 			}
 
 			int originalCount = invInstance.Count;
-			SceneItem sceneItem = invInstance.SpawnInScene (removeOriginal, applyRememberData);
+			SceneItem sceneItem = invInstance.SpawnInScene(removeOriginal, applyRememberData);
 
 			if (sceneItem && runtimeSpawnedObjectParameter != null && runtimeSpawnedObjectParameter.parameterType == ParameterType.GameObject)
 			{
-				runtimeSpawnedObjectParameter.SetValue (sceneItem.gameObject);
+				runtimeSpawnedObjectParameter.SetValue(sceneItem.gameObject);
 			}
 
-			KickStarter.actionListManager.RegisterCutsceneSpawnedObject (sceneItem.gameObject);
+			KickStarter.actionListManager.RegisterCutsceneSpawnedObject(sceneItem.gameObject);
 
 			if (invInstance.Count == 0 || (removeOriginal && !invInstance.InvItem.canCarryMultiple) || (removeOriginal && invInstance.InvItem.canCarryMultiple && originalCount == 1))
 			{
-				InvCollection source = invInstance.GetSource ();
+				InvCollection source = invInstance.GetSource();
 				if (source != null)
 				{
-					source.Delete (invInstance);
+					source.Delete(invInstance);
 				}
 			}
 
@@ -159,12 +159,12 @@ namespace AC
 		}
 
 
-		private InvInstance GetItemToSpawn ()
+		private InvInstance GetItemToSpawn()
 		{
 			switch (itemSource)
 			{
 				case ItemSource.NoSource:
-					return new InvInstance (invID);
+					return new InvInstance(invID);
 
 				case ItemSource.PlayerInventory:
 					{
@@ -175,20 +175,20 @@ namespace AC
 						}
 						else
 						{
-							invCollection = KickStarter.saveSystem.GetItemsFromPlayer (playerID);
+							invCollection = KickStarter.saveSystem.GetItemsFromPlayer(playerID);
 						}
-						
-						InvInstance invInstance = invCollection.GetFirstInstance (invID);
-						if (!InvInstance.IsValid (invInstance))
+
+						InvInstance invInstance = invCollection.GetFirstInstance(invID);
+						if (!InvInstance.IsValid(invInstance))
 						{
 							if (playerID >= 0)
 							{
-								LogWarning ("Item " + invID + " is not held by Player " + playerID);
+								LogWarning("Item " + invID + " is not held by Player " + playerID);
 								return null;
 							}
 							else
 							{
-								LogWarning ("Item " + invID + " is not held by the Player");
+								LogWarning("Item " + invID + " is not held by the Player");
 								return null;
 							}
 						}
@@ -198,16 +198,16 @@ namespace AC
 				case ItemSource.Container:
 					if (runtimeContainer)
 					{
-						InvInstance invInstance = runtimeContainer.InvCollection.GetFirstInstance (invID);
-						if (!InvInstance.IsValid (invInstance))
+						InvInstance invInstance = runtimeContainer.InvCollection.GetFirstInstance(invID);
+						if (!InvInstance.IsValid(invInstance))
 						{
-							LogWarning ("Item " + invID + " is not held by the Container " + runtimeContainer, runtimeContainer);
+							LogWarning("Item " + invID + " is not held by the Container " + runtimeContainer, runtimeContainer);
 						}
 						return invInstance;
 					}
 					else
 					{
-						LogWarning ("No Container found!");
+						LogWarning("No Container found!");
 						return null;
 					}
 
@@ -217,22 +217,22 @@ namespace AC
 		}
 
 
-		private float RunSceneToItem ()
+		private float RunSceneToItem()
 		{
 			if (runtimeSceneItem == null)
 			{
-				LogWarning ("No Scene Item found!");
+				LogWarning("No Scene Item found!");
 				return 0f;
 			}
 
-			if (!InvInstance.IsValid (runtimeSceneItem.LinkedInvInstance))
+			if (!InvInstance.IsValid(runtimeSceneItem.LinkedInvInstance))
 			{
-				LogWarning ("Scene Item " + runtimeSceneItem.name + " has no valid InvInstance");
+				LogWarning("Scene Item " + runtimeSceneItem.name + " has no valid InvInstance");
 				return 0f;
 			}
 
-			runtimeSceneItem.SaveRememberDataToLinkedInstance ();
-			InvInstance instanceToAdd = removeOriginal ? runtimeSceneItem.LinkedInvInstance : new InvInstance (runtimeSceneItem.LinkedInvInstance);
+			runtimeSceneItem.SaveRememberDataToLinkedInstance();
+			InvInstance instanceToAdd = removeOriginal ? runtimeSceneItem.LinkedInvInstance : new InvInstance(runtimeSceneItem.LinkedInvInstance);
 			InvInstance addedInstance = null;
 
 			switch (itemSource)
@@ -244,11 +244,11 @@ namespace AC
 				case ItemSource.Container:
 					if (runtimeContainer)
 					{
-						addedInstance = runtimeContainer.InvCollection.Add (instanceToAdd);
+						addedInstance = runtimeContainer.InvCollection.Add(instanceToAdd);
 					}
 					else
 					{
-						LogWarning ("No Container found!");
+						LogWarning("No Container found!");
 					}
 					break;
 
@@ -260,23 +260,23 @@ namespace AC
 					}
 					else
 					{
-						invCollection = KickStarter.saveSystem.GetItemsFromPlayer (playerID);
+						invCollection = KickStarter.saveSystem.GetItemsFromPlayer(playerID);
 					}
-					addedInstance = invCollection.Add (instanceToAdd);
+					addedInstance = invCollection.Add(instanceToAdd);
 					break;
 
 				default:
 					break;
 			}
 
-			if (InvInstance.IsValid (addedInstance) && runtimeNewItemParameter != null && runtimeNewItemParameter.parameterType == ParameterType.InventoryItem)
+			if (InvInstance.IsValid(addedInstance) && runtimeNewItemParameter != null && runtimeNewItemParameter.parameterType == ParameterType.InventoryItem)
 			{
-				runtimeNewItemParameter.SetValue (addedInstance.InvItem.id);
+				runtimeNewItemParameter.SetValue(addedInstance.InvItem.id);
 			}
 
 			if (removeOriginal)
 			{
-				KickStarter.sceneChanger.ScheduleForDeletion (runtimeSceneItem.gameObject);
+				KickStarter.sceneChanger.ScheduleForDeletion(runtimeSceneItem.gameObject);
 			}
 			return 0f;
 		}
@@ -443,7 +443,7 @@ namespace AC
 			return false;
 		}
 
-		#endif
+#endif
 
 
 		/**
@@ -451,11 +451,29 @@ namespace AC
 		 * <param name = "invID">The ID of the inventory item to spawn</param>
 		 * <returns>The generated Action</returns>
 		 */
-		public static ActionInventoryPrefab CreateNew_ItemToScene (int invID)
+		public static ActionInventoryPrefab CreateNew_ItemToScene(int invID)
 		{
-			ActionInventoryPrefab newAction = CreateNew<ActionInventoryPrefab> ();
+			ActionInventoryPrefab newAction = CreateNew<ActionInventoryPrefab>();
 			newAction.method = Method.ItemToScene;
 			newAction.invID = invID;
+
+			return newAction;
+		}
+		
+
+		/**
+		 * <summary>Creates a new instance of the 'Inventory: Spawn linked prefab' Action, where a SceneItem is transferred to the Inventory</summary>
+		 * <param name = "sceneItem">The SceneItem to transfer</param>
+		 * <returns>The generated Action</returns>
+		 */
+		public static ActionInventoryPrefab CreateNew_SceneToItem (SceneItem sceneItem, bool removeOriginal, int playerID = -1)
+		{
+			ActionInventoryPrefab newAction = CreateNew<ActionInventoryPrefab> ();
+			newAction.method = Method.SceneToItem;
+			newAction.sceneItem = sceneItem;
+			newAction.removeOriginal = removeOriginal;
+			newAction.playerID = playerID;
+			newAction.itemSource = playerID >= 0 ? ItemSource.PlayerInventory : ItemSource.NoSource;
 
 			return newAction;
 		}

@@ -59,6 +59,8 @@ namespace AC
 		public bool preventInteractions = false;
 		/** If True, then items cannot be selected */
 		public bool preventSelection = false;
+		/** If True, and the element displays Container items, then items selected from outside the Container can be interacted with */
+		public bool allowInteractionsFromOutside = false;
 		/** If True, and the element is scrolled by an offset larger than the number of new items to show, then the offset amount will be reduced to only show those new items. */
 		public bool limitMaxScroll = true;
 		/** If True, then slots with no item in them will have highlighting effects applied as well */
@@ -145,6 +147,7 @@ namespace AC
 			hoverSoundOverEmptySlots = true;
 			preventInteractions = false;
 			preventSelection = false;
+			allowInteractionsFromOutside = false;
 			limitMaxScroll = true;
 			inventoryItemCountDisplay = InventoryItemCountDisplay.OnlyIfMultiple;
 			highlightEmptySlots = false;
@@ -177,6 +180,7 @@ namespace AC
 				for (int i=0; i<uiSlots.Length; i++)
 				{
 					uiSlots[i] = new UISlot (_element.uiSlots[i]);
+					uiSlots[i].uiButton = null;
 				}
 			}
 
@@ -230,6 +234,7 @@ namespace AC
 			hoverSoundOverEmptySlots = _element.hoverSoundOverEmptySlots;
 			preventInteractions = _element.preventInteractions;
 			preventSelection = _element.preventSelection;
+			allowInteractionsFromOutside = _element.allowInteractionsFromOutside;
 			limitMaxScroll = _element.limitMaxScroll;
 			inventoryItemCountDisplay = _element.inventoryItemCountDisplay;
 			highlightEmptySlots = _element.highlightEmptySlots;
@@ -365,7 +370,7 @@ namespace AC
 			inventoryBoxType = (AC_InventoryBoxType) CustomGUILayout.EnumPopup ("Inventory box type:", inventoryBoxType, apiPrefix + ".inventoryBoxType", "How the items to display are chosen");
 			if (inventoryBoxType == AC_InventoryBoxType.Default || inventoryBoxType == AC_InventoryBoxType.CustomScript)
 			{
-				maxSlots = CustomGUILayout.IntSlider ("Max number of slots:", maxSlots, 1, 30, apiPrefix + ".maxSlots", "The maximum number of inventory items that can be shown at once");
+				maxSlots = CustomGUILayout.IntField ("Max number of slots:", maxSlots, apiPrefix + ".maxSlots", "The maximum number of inventory items that can be shown at once");
 				isClickable = true;
 			}
 			else if (inventoryBoxType == AC_InventoryBoxType.DisplaySelected)
@@ -381,7 +386,7 @@ namespace AC
 			else if (inventoryBoxType == AC_InventoryBoxType.Container)
 			{
 				isClickable = true;
-				maxSlots = CustomGUILayout.IntSlider ("Max number of slots:", maxSlots, 1, 30, apiPrefix + ".maxSlots", "The maximum number of inventory items that can be shown at once");
+				maxSlots = CustomGUILayout.IntField ("Max number of slots:", maxSlots, apiPrefix + ".maxSlots", "The maximum number of inventory items that can be shown at once");
 				containerSelectMode = (ContainerSelectMode) CustomGUILayout.EnumPopup ("Click behaviour:", containerSelectMode, apiPrefix + ".containerSelectMode", "What happens to items when they are removed from the Container");
 			}
 			else
@@ -391,8 +396,10 @@ namespace AC
 				{
 					numSlots = CustomGUILayout.IntField ("Test slots:", numSlots, apiPrefix + ".numSlots");
 				}
-				maxSlots = CustomGUILayout.IntSlider ("Max number of slots:", maxSlots, 1, 30, apiPrefix + ".maxSlots", "The maximum number of inventory items that can be shown at once");
+				maxSlots = CustomGUILayout.IntField ("Max number of slots:", maxSlots, apiPrefix + ".maxSlots", "The maximum number of inventory items that can be shown at once");
 			}
+
+			maxSlots = Mathf.Max (maxSlots, 1);
 
 			if (inventoryBoxType != AC_InventoryBoxType.DisplayLastSelected &&
 				inventoryBoxType != AC_InventoryBoxType.DisplaySelected)
@@ -410,6 +417,10 @@ namespace AC
 
 				case AC_InventoryBoxType.Container:
 					preventInteractions = CustomGUILayout.Toggle ("Prevent interactions?", preventInteractions, apiPrefix + ".preventInteractions", "If True, inventory interactions cannot be run");
+					if (!preventInteractions)
+					{
+						allowInteractionsFromOutside = CustomGUILayout.Toggle("Allow external interactions?", allowInteractionsFromOutside, apiPrefix + ".allowInteractionsFromOutside", "If True, then interactions can occur with items from outside the Container");
+					}
 					preventSelection = CustomGUILayout.Toggle ("Prevent selection?", preventSelection, apiPrefix + ".preventSelection", "If True, then items cannot be selected");
 					canBeLooped = CustomGUILayout.Toggle ("Supports looping?", canBeLooped, apiPrefix + ".canBeLooped", "If True, items will be looped when the element reaches its maximum offset");
 					break;
@@ -438,15 +449,11 @@ namespace AC
 					break;
 
 				case AC_InventoryBoxType.Objectives:
+				case AC_InventoryBoxType.SubObjectives:
 					objectiveDisplayType = (ObjectiveDisplayType) CustomGUILayout.EnumPopup ("Objectives to display:", objectiveDisplayType, apiPrefix + ".objectiveDisplayType", "What Objectives to display");
 					objectiveSorting = (ObjectiveSorting) CustomGUILayout.EnumPopup ("Sort mode:", objectiveSorting, apiPrefix + ".objectiveSorting", "How to sort listed Objectives");
 					autoOpenDocument = CustomGUILayout.ToggleLeft ("Auto-select Objective when clicked?", autoOpenDocument, apiPrefix + ".autoOpenDocument", "If True, then clicking a slot will select the chosen Objective");
 					actionListOnClick = ActionListAssetMenu.AssetGUI ("ActionList when click:", actionListOnClick, title + "_Click", apiPrefix + ".actionListOnClick", "The ActionList asset to run whenever a slot is clicked", null, showALAEditor);
-					break;
-
-				case AC_InventoryBoxType.SubObjectives:
-					objectiveDisplayType = (ObjectiveDisplayType) CustomGUILayout.EnumPopup ("Objectives to display:", objectiveDisplayType, apiPrefix + ".objectiveDisplayType", "What Objectives to display");
-					objectiveSorting = (ObjectiveSorting) CustomGUILayout.EnumPopup ("Sort mode:", objectiveSorting, apiPrefix + ".objectiveSorting", "How to sort listed Objectives");
 					break;
 			}
 
@@ -496,13 +503,12 @@ namespace AC
 
 			uiHideStyle = (UIHideStyle) CustomGUILayout.EnumPopup ("When slot is empty:", uiHideStyle, apiPrefix + ".uiHideStyle", "The method by which this element (or slots within it) are hidden from view when made invisible");
 
-			if (inventoryBoxType != AC_InventoryBoxType.CollectedDocuments && inventoryBoxType != AC_InventoryBoxType.Objectives && inventoryBoxType != AC_InventoryBoxType.SubObjectives && uiHideStyle == UIHideStyle.ClearContent && displayType != ConversationDisplayType.TextOnly)
+			if (inventoryBoxType != AC_InventoryBoxType.Objectives && inventoryBoxType != AC_InventoryBoxType.SubObjectives && uiHideStyle == UIHideStyle.ClearContent && displayType != ConversationDisplayType.TextOnly)
 			{
 				EditorGUILayout.BeginHorizontal ();
 				EditorGUILayout.LabelField (new GUIContent ("Empty slot texture:", "The texture to display when a slot is empty"), GUILayout.Width (145f));
 				emptySlotTexture = (Texture2D) CustomGUILayout.ObjectField <Texture2D> (emptySlotTexture, false, GUILayout.Width (70f), GUILayout.Height (30f), apiPrefix + ".emptySlotTexture");
 				EditorGUILayout.EndHorizontal ();
-
 			}
 
 			if (source == MenuSource.AdventureCreator && ((KickStarter.settingsManager && KickStarter.settingsManager.canReorderItems) || uiHideStyle == UIHideStyle.ClearContent) && highlightTexture)
@@ -568,10 +574,7 @@ namespace AC
 
 		protected override void ShowTextGUI (string apiPrefix)
 		{
-			if (displayType == ConversationDisplayType.TextOnly)
-			{
-				anchor = (TextAnchor) CustomGUILayout.EnumPopup ("Text alignment:", anchor, apiPrefix + ".anchor", "The text alignment");
-			}
+			anchor = (TextAnchor) CustomGUILayout.EnumPopup ("Text alignment:", anchor, apiPrefix + ".anchor", "The text alignment");
 			textEffects = (TextEffects) CustomGUILayout.EnumPopup ("Text effect:", textEffects, apiPrefix + ".textEffects", "The special FX applied to the text");
 			if (textEffects != TextEffects.None)
 			{
@@ -653,7 +656,7 @@ namespace AC
 
 		public override bool ReferencesAsset (ActionListAsset actionListAsset)
 		{
-			if ((inventoryBoxType == AC_InventoryBoxType.CollectedDocuments || inventoryBoxType == AC_InventoryBoxType.Objectives) && actionListOnClick == actionListAsset)
+			if ((inventoryBoxType == AC_InventoryBoxType.CollectedDocuments || inventoryBoxType == AC_InventoryBoxType.Objectives || inventoryBoxType == AC_InventoryBoxType.SubObjectives) && actionListOnClick == actionListAsset)
 				return true;
 			return false;
 		}
@@ -675,7 +678,7 @@ namespace AC
 		{
 			for (int i = 0; i < uiSlots.Length; i++)
 			{
-				if (uiSlots[i].uiButton && uiSlots[i].uiButton == gameObject)
+				if (uiSlots[i].uiButton && uiSlots[i].uiButton.gameObject == gameObject)
 				{
 					return i;
 				}
@@ -960,7 +963,18 @@ namespace AC
 				{
 					LimitUISlotVisibility (uiSlots, numSlots, uiHideStyle, emptySlotTexture);
 
-					uiSlots[_slot].SetText (labels [_slot]);
+					if (inventoryBoxType == AC_InventoryBoxType.Default || inventoryBoxType == AC_InventoryBoxType.CustomScript || inventoryBoxType == AC_InventoryBoxType.HotspotBased)
+					{
+						if (displayType != ConversationDisplayType.IconOnly || inventoryItemCountDisplay != InventoryItemCountDisplay.Never)
+						{
+							uiSlots[_slot].SetText (labels [_slot]);
+						}
+					}
+					else
+					{
+						uiSlots[_slot].SetText (labels [_slot]);
+					}
+
 					if (displayType == ConversationDisplayType.IconOnly || displayType == ConversationDisplayType.IconAndText)
 					{
 						Texture tex = null;
@@ -1051,12 +1065,14 @@ namespace AC
 		{
 			base.Display (_style, _slot, zoom, isActive);
 
-			_style.wordWrap = true;
-
-			if (displayType == ConversationDisplayType.TextOnly)
+			if (Application.isPlaying && inventoryBoxType == AC_InventoryBoxType.CollectedDocuments && _slot >= documentIDs.Length && isActive)
 			{
-				_style.alignment = anchor;
+				_style = KickStarter.playerMenus.NormalStyle;
+				isActive = false;
 			}
+
+			_style.wordWrap = true;
+			_style.alignment = anchor;
 
 			if (inventoryBoxType == AC_InventoryBoxType.CollectedDocuments || inventoryBoxType == AC_InventoryBoxType.Objectives || inventoryBoxType == AC_InventoryBoxType.SubObjectives)
 			{
@@ -1067,7 +1083,7 @@ namespace AC
 
 				if (inventoryBoxType == AC_InventoryBoxType.CollectedDocuments && markAlreadyRead)
 				{
-					if (documentIDs != null && _slot < documentIDs.Length && KickStarter.runtimeDocuments.HasBeenRead (documentIDs[_slot]))
+					if (documentIDs != null && _slot < documentIDs.Length && KickStarter.runtimeDocuments.HasBeenRead(documentIDs[_slot]))
 					{
 						if (isActive)
 						{
@@ -1092,27 +1108,27 @@ namespace AC
 				{
 					if (textEffects != TextEffects.None)
 					{
-						AdvGame.DrawTextEffect (ZoomRect (GetSlotRectRelative (_slot), zoom), labels [_slot], _style, effectColour, _style.normal.textColor, outlineSize, textEffects);
+						AdvGame.DrawTextEffect(ZoomRect(GetSlotRectRelative(_slot), zoom), labels[_slot], _style, effectColour, _style.normal.textColor, outlineSize, textEffects);
 					}
 					else
 					{
-						GUI.Label (ZoomRect (GetSlotRectRelative (_slot), zoom), labels [_slot], _style);
+						GUI.Label(ZoomRect(GetSlotRectRelative(_slot), zoom), labels[_slot], _style);
 					}
 				}
 				else
 				{
 					if (Application.isPlaying && textures[_slot])
 					{
-						GUI.DrawTexture (ZoomRect (GetSlotRectRelative (_slot), zoom), textures[_slot], ScaleMode.StretchToFill, true, 0f);
+						GUI.DrawTexture(ZoomRect(GetSlotRectRelative(_slot), zoom), textures[_slot], ScaleMode.StretchToFill, true, 0f);
 					}
-					#if UNITY_EDITOR
+#if UNITY_EDITOR
 					else if (testIcon != null)
 					{
 						GUI.DrawTexture (ZoomRect (GetSlotRectRelative (_slot), zoom), testIcon, ScaleMode.StretchToFill, true, 0f);
 					}
-					#endif
-					
-					GUI.Label (ZoomRect (GetSlotRectRelative (_slot), zoom), string.Empty, _style);
+#endif
+
+					GUI.Label(ZoomRect(GetSlotRectRelative(_slot), zoom), string.Empty, _style);
 				}
 				return;
 			}
@@ -1240,9 +1256,10 @@ namespace AC
 		 * <summary>Performs what should happen when the element is clicked on, if inventoryBoxType = AC_InventoryBoxType.Default.</summary>
 		 * <param name = "_mouseState">The state of the mouse button</param>
 		 * <param name = "_slot">The index number of the slot that was clicked on</param>
+		 * <param name = "ignoreSelectedSourceCheck">If true, then the selected item's source is irrelevant</param> 
 		 * <returns>True if the click had an effect and should be consumed</returns>
 		 */
-		public bool HandleDefaultClick (MouseState _mouseState, int _slot)
+		public bool HandleDefaultClick (MouseState _mouseState, int _slot, bool ignoreSelectedSourceCheck = false)
 		{
 			InvInstance selectedInstance = KickStarter.runtimeInventory.SelectedInstance;
 
@@ -1351,7 +1368,11 @@ namespace AC
 			{
 				if (inventoryBoxType == AC_InventoryBoxType.Container)
 				{
-					if (selectedInstance.GetSourceContainer () && (selectedInstance.GetSourceContainer () == OverrideContainer) || (OverrideContainer == null && selectedInstance.GetSourceContainer () == KickStarter.playerInput.activeContainer))
+					if (ignoreSelectedSourceCheck)
+					{
+						// Combines OK
+					}
+					else if (selectedInstance.GetSourceContainer () && (selectedInstance.GetSourceContainer () == OverrideContainer) || (OverrideContainer == null && selectedInstance.GetSourceContainer () == KickStarter.playerInput.activeContainer))
 					{
 						// Combines OK
 					}
@@ -1592,11 +1613,19 @@ namespace AC
 				{
 					if (Application.isPlaying)
 					{
-						documentIDs = KickStarter.runtimeDocuments.GetCollectedDocumentIDs ((limitToCategory) ? categoryIDs.ToArray () : null);
+						documentIDs = KickStarter.runtimeDocuments.GetCollectedDocumentIDs (limitToCategory ? categoryIDs.ToArray () : null);
 
 						numDocuments = documentIDs.Length;
-						numSlots = numDocuments;
-						if (numSlots > maxSlots)
+
+						if (uiHideStyle == UIHideStyle.DisableObject)
+						{
+							numSlots = numDocuments;
+							if (numSlots > maxSlots)
+							{
+								numSlots = maxSlots;
+							}
+						}
+						else if (uiHideStyle == UIHideStyle.ClearContent)
 						{
 							numSlots = maxSlots;
 						}
@@ -1607,25 +1636,33 @@ namespace AC
 						textures = new Texture[numSlots];
 
 						int languageNumber = Options.GetLanguage ();
-						for (int i=0; i<numSlots; i++)
+						for (int i = 0; i < numSlots; i++)
 						{
-							int documentID = documentIDs [i + offset];
-							Document document = KickStarter.inventoryManager.GetDocument (documentID);
+							if (i < numDocuments)
+							{
+								int documentID = documentIDs[i + offset];
+								Document document = KickStarter.inventoryManager.GetDocument(documentID);
 
-							labels[i] = KickStarter.runtimeLanguages.GetTranslation (document.title,
-																						document.titleLineID,
-																						languageNumber,
-																						document.GetTranslationType (0));
-							labels[i] = AddIndexNumber (labels[i], i);
+								labels[i] = KickStarter.runtimeLanguages.GetTranslation(document.title,
+																							document.titleLineID,
+																							languageNumber,
+																							document.GetTranslationType(0));
+								labels[i] = AddIndexNumber(labels[i], i);
 
-							textures[i] = document.texture;
+								textures[i] = document.texture;
+							}
+							else
+							{
+								labels[i] = string.Empty;
+								textures[i] = emptySlotTexture;
+							}
 						}
 
 						if (markAlreadyRead && source != MenuSource.AdventureCreator)
 						{
 							for (int i = 0; i < documentIDs.Length; i++)
 							{
-								if (uiSlots.Length > i)
+								if (i < uiSlots.Length)
 								{
 									bool chosen = KickStarter.runtimeDocuments.HasBeenRead (documentIDs[i]);
 
@@ -2410,7 +2447,7 @@ namespace AC
 								{
 									return HandleDefaultClick (_mouseState, _slot);
 								}
-								else
+								else if (KickStarter.playerInput.GetDragState() == DragState.None)
 								{
 									KickStarter.runtimeInventory.SelectItem (containerInstance);
 								}
@@ -2436,7 +2473,7 @@ namespace AC
 
 					if (AllowInteractions () && InvInstance.IsValid (containerInstance))
 					{
-						bool clickConsumed = HandleDefaultClick (_mouseState, _slot);
+						bool clickConsumed = HandleDefaultClick (_mouseState, _slot, allowInteractionsFromOutside);
 						if (clickConsumed) return true;
 					}
 
@@ -2454,7 +2491,7 @@ namespace AC
 					{
 						container.InvCollection.Insert (selectedInstance, index, OccupiedSlotBehaviour.SwapItems);
 					}
-					else
+					else if (!container.IsFull)
 					{
 						container.InvCollection.Insert (selectedInstance, index);
 					}
@@ -2467,7 +2504,7 @@ namespace AC
 			{
 				if (AllowInteractions () && InvInstance.IsValid (containerInstance))
 				{
-					return HandleDefaultClick (_mouseState, _slot);
+					return HandleDefaultClick (_mouseState, _slot, allowInteractionsFromOutside);
 				}
 
 				if (InvInstance.IsValid (KickStarter.runtimeInventory.SelectedInstance))
@@ -2522,6 +2559,7 @@ namespace AC
 					break;
 
 				case AC_InventoryBoxType.Objectives:
+				case AC_InventoryBoxType.SubObjectives:
 					if (autoOpenDocument)
 					{
 						KickStarter.runtimeObjectives.SelectedObjective = GetObjective (_slot);
@@ -2614,13 +2652,13 @@ namespace AC
 			{
 				if (overrideMainObjective != null)
 				{
-					allObjectives = KickStarter.runtimeObjectives.GetSubObjectives (overrideMainObjective.ID);
+					allObjectives = KickStarter.runtimeObjectives.GetSubObjectives (overrideMainObjective.ID, objectiveDisplayType);
 				}
 				else
 				{
 					if (KickStarter.runtimeObjectives.SelectedObjective != null)
 					{
-						allObjectives = KickStarter.runtimeObjectives.GetSubObjectives (KickStarter.runtimeObjectives.SelectedObjective.ObjectiveID);
+						allObjectives = KickStarter.runtimeObjectives.GetSubObjectives (KickStarter.runtimeObjectives.SelectedObjective.ObjectiveID, objectiveDisplayType);
 					}
 					else
 					{
@@ -2641,6 +2679,10 @@ namespace AC
 
 				case ObjectiveSorting.ByUpdateTime:
 					System.Array.Sort (allObjectives, delegate (ObjectiveInstance obj1, ObjectiveInstance obj2) { return obj1.UpdateTime.CompareTo (obj2.UpdateTime); });
+					break;
+
+				case ObjectiveSorting.ByEditorIndex:
+					System.Array.Sort (allObjectives, delegate (ObjectiveInstance obj1, ObjectiveInstance obj2) { return obj1.EditorIndex.CompareTo (obj2.EditorIndex); });
 					break;
 
 				default:

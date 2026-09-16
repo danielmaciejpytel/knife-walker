@@ -40,7 +40,11 @@ namespace AC
 		public SpeechTrackPlaybackMode speechTrackPlaybackMode;
 
 		private SpeechPlayableBehaviour lastSetBehaviour;
-		public int trackInstanceID;
+#if UNITY_6000_5_OR_NEWER
+		public EntityId trackID;
+#else
+		public int trackID;
+#endif
 
 
 		#endregion
@@ -54,7 +58,7 @@ namespace AC
 			var playable = ScriptPlayable<SpeechPlayableBehaviour>.Create (graph, template);
 			SpeechPlayableBehaviour clone = playable.GetBehaviour ();
 
-			clone.Init (speechPlayableData, speaker, isPlayerLine, playerID, speechTrackPlaybackMode, trackInstanceID);
+			clone.Init (speechPlayableData, speaker, isPlayerLine, playerID, speechTrackPlaybackMode, trackID);
 			lastSetBehaviour = clone;
 
 			return playable;

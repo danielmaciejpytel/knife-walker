@@ -30,7 +30,7 @@ namespace AC
 			if (actionList != null)
 			{
 				isLocked = true;
-				targetID = actionList.GetInstanceID ();
+				targetID = UnityVersionHandler.GetInstanceID(actionList);
 			}
 			else
 			{
@@ -62,7 +62,7 @@ namespace AC
 					ActionList[] actionLists = UnityVersionHandler.FindObjectsOfType<ActionList> ();
 					foreach (ActionList actionList in actionLists)
 					{
-						if (actionList.GetInstanceID () == targetID)
+						if (UnityVersionHandler.GetInstanceID(actionList) == targetID)
 						{
 							_target = actionList;
 							return _target;
@@ -77,7 +77,7 @@ namespace AC
 				if (value != null)
 				{
 					_target = value;
-					targetID = value.GetInstanceID ();
+					targetID = UnityVersionHandler.GetInstanceID(value);
 				}
 			}
 		}

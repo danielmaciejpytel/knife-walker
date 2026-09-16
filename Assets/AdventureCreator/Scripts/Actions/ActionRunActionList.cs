@@ -1,7 +1,7 @@
 ﻿/*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2025
  *	
  *	"ActionRunActionList.cs"
  * 
@@ -26,8 +26,6 @@ namespace AC
 		public enum ListSource { InScene, AssetFile };
 		public ListSource listSource = ListSource.InScene;
 
-		private ActionListManager.NestedAwaitingActiveList nestedAwaitingActiveList;
-
 		public ActionList actionList;
 		public int constantID = 0;
 		public int parameterID = -1;
@@ -51,8 +49,8 @@ namespace AC
 		protected bool isAwaitingDelay;
 
 		protected RuntimeActionList runtimeActionList;
-		protected Conversation[] conversations;
-
+		protected ActionList parentActionList;
+		
 		[SerializeField] protected RunMode runMode = RunMode.RunOnly;
 		protected RunMode runtimeRunMode;
 		protected enum RunMode { RunOnly, SetParametersAndRun, SetParametersOnly };
@@ -61,11 +59,20 @@ namespace AC
 		public override ActionCategory Category { get { return ActionCategory.ActionList; }}
 		public override string Title { get { return "Run"; }}
 		public override string Description { get { return "Runs any ActionList (either scene-based like Cutscenes, Triggers and Interactions, or ActionList assets). If the new ActionList takes parameters, this Action can be used to set them."; }}
+		public override bool RunNormallyWhenSkip => true;
+
+
+		public override void AssignParentList(ActionList actionList)
+		{
+			parentActionList = actionList;
+			base.AssignParentList(actionList);
+		}
+
 		
 
-		public override void Upgrade ()
+		public override void Upgrade()
 		{
-			base.Upgrade ();
+			base.Upgrade();
 
 			if (!runInParallel)
 			{
@@ -85,7 +92,6 @@ namespace AC
 		{
 			runtimeRunMode = runMode;
 			isAwaitingDelay = false;
-			nestedAwaitingActiveList = null;
 
 			if (listSource == ListSource.InScene)
 			{
@@ -132,96 +138,104 @@ namespace AC
 		{
 			if (!isRunning)
 			{
+
 				isRunning = true;
 				runtimeActionList = null;
 
-				switch (listSource)
+				if (parentActionList.IsSkipping)
 				{
-					case ListSource.InScene:
-						if (actionList != null && !actionList.actions.Contains (this))
-						{
-							KickStarter.actionListManager.EndList (actionList);
-
-							if (actionList.source == ActionListSource.AssetFile && actionList.assetFile != null && actionList.assetFile.useParameters)
+					Skip();
+				}
+				else
+				{
+					switch (listSource)
+					{
+						case ListSource.InScene:
+							if (actionList != null && !actionList.actions.Contains(this))
 							{
-								if (actionList.syncParamValues)
+								KickStarter.actionListManager.EndList(actionList);
+
+								if (actionList.source == ActionListSource.AssetFile && actionList.assetFile != null && actionList.assetFile.useParameters)
 								{
-									SendParameters (actionList.assetFile.GetParameters (), true);
+									if (actionList.syncParamValues)
+									{
+										SendParameters(actionList.assetFile.GetParameters(), true);
+									}
+									else
+									{
+										SendParameters(actionList.parameters, false);
+									}
+									if (runtimeRunMode == RunMode.SetParametersOnly)
+									{
+										isRunning = false;
+										return 0f;
+									}
+								}
+								else if (actionList.source == ActionListSource.InScene && actionList.useParameters)
+								{
+									SendParameters(actionList.parameters, false);
+									if (runtimeRunMode == RunMode.SetParametersOnly)
+									{
+										isRunning = false;
+										return 0f;
+									}
+								}
+
+								if (runFromStart)
+								{
+									actionList.Interact(0, !isSkippable);
 								}
 								else
 								{
-									SendParameters (actionList.parameters, false);
+									actionList.Interact(GetSkipIndex(actionList.actions), !isSkippable);
 								}
-								if (runtimeRunMode == RunMode.SetParametersOnly)
-								{
-									isRunning = false;
-									return 0f;
-								}
-							}
-							else if (actionList.source == ActionListSource.InScene && actionList.useParameters)
-							{
-								SendParameters (actionList.parameters, false);
-								if (runtimeRunMode == RunMode.SetParametersOnly)
-								{
-									isRunning = false;
-									return 0f;
-								}
-							}
-
-							if (runFromStart)
-							{
-								actionList.Interact (0, !isSkippable);
 							}
 							else
 							{
-								actionList.Interact (GetSkipIndex (actionList.actions), !isSkippable);
+								LogWarning("Could not find ActionList to run.");
+								isRunning = false;
+								return 0f;
 							}
-						}
-						else
-						{
-							LogWarning ("Could not find ActionList to run.");
-							isRunning = false;
-							return 0f;
-						}
-						break;
+							break;
 
-					case ListSource.AssetFile:
-						if (invActionList != null && !invActionList.actions.Contains (this))
-						{
-							if (invActionList.useParameters)
+						case ListSource.AssetFile:
+							if (invActionList != null && !invActionList.actions.Contains(this))
 							{
-								SendParameters (invActionList.GetParameters (), true);
-								if (runtimeRunMode == RunMode.SetParametersOnly)
+								if (invActionList.useParameters)
 								{
-									isRunning = false;
-									return 0f;
+									SendParameters(invActionList.GetParameters(), true);
+									if (runtimeRunMode == RunMode.SetParametersOnly)
+									{
+										isRunning = false;
+										return 0f;
+									}
 								}
-							}
 
-							if (!invActionList.canRunMultipleInstances)
-							{
-								KickStarter.actionListAssetManager.EndAssetList (invActionList);
-							}
+								if (!invActionList.canRunMultipleInstances)
+								{
+									KickStarter.actionListAssetManager.EndAssetList(invActionList);
+								}
 
-							if (runFromStart)
-							{
-								runtimeActionList = AdvGame.RunActionListAsset (invActionList, 0, !isSkippable);
+								if (runFromStart)
+								{
+									runtimeActionList = AdvGame.RunActionListAsset(invActionList, 0, !isSkippable);
+								}
+								else
+								{
+									runtimeActionList = AdvGame.RunActionListAsset(invActionList, GetSkipIndex(invActionList.actions), !isSkippable);
+								}
 							}
 							else
 							{
-								runtimeActionList = AdvGame.RunActionListAsset (invActionList, GetSkipIndex (invActionList.actions), !isSkippable);
+								LogWarning("Could not find ActionList asset to run");
+								isRunning = false;
+								return 0f;
 							}
-						}
-						else
-						{
-							LogWarning ("Could not find ActionList asset to run");
-							isRunning = false;
-							return 0f;
-						}
-						break;
+							break;
 
-					default:
-						break;
+						default:
+							break;
+					}
 				}
 
 				if (!runInParallel || (runInParallel && willWait))
@@ -241,51 +255,11 @@ namespace AC
 					case ListSource.InScene:
 						if (actionList)
 						{
-							if (isAwaitingDelay)
+							if (isAwaitingDelay || KickStarter.actionListManager.IsListRunning (actionList))
 							{
-								return defaultPauseTime;
-							}
-							else if (KickStarter.actionListManager.IsListRunning (actionList))
-							{
-								if (nestedAwaitingActiveList == null)
-								{
-									ActiveList nextActiveList = GetNextActiveList ();
-									if (nextActiveList != null && KickStarter.actionListManager.IsNestedAwaiting (nextActiveList))
-									{
-										nestedAwaitingActiveList = new ActionListManager.NestedAwaitingActiveList (GetActiveList (), null, actionList);
-										KickStarter.actionListManager.SetActionPendingState (nestedAwaitingActiveList, true);
-									}
-								}
-
 								isAwaitingDelay = false;
 								EventManager.OnEndActionList -= OnEndActionList;
 								return defaultPauseTime;
-							}
-							else if (nestedAwaitingActiveList != null && nestedAwaitingActiveList.Conversation)
-							{
-								if (nestedAwaitingActiveList.Conversation.IsOverridingActionList (actionList))
-								{
-									return defaultPauseTime;
-								}
-							}
-							else
-							{
-								if (conversations == null)
-								{
-									conversations = UnityVersionHandler.FindObjectsOfType<Conversation> ();
-								}
-								foreach (Conversation conversation in conversations)
-								{
-									if (conversation.IsOverridingActionList (actionList))
-									{
-										nestedAwaitingActiveList = new ActionListManager.NestedAwaitingActiveList (GetActiveList (), conversation, actionList);
-										KickStarter.actionListManager.SetActionPendingState (nestedAwaitingActiveList, true);
-
-										isAwaitingDelay = false;
-										EventManager.OnEndActionList -= OnEndActionList;
-										return defaultPauseTime;
-									}
-								}
 							}
 						}
 						break;
@@ -299,38 +273,7 @@ namespace AC
 								{
 									if (KickStarter.actionListManager.IsListRunning (runtimeActionList))
 									{
-										ActiveList nextActiveList = GetNextActiveList ();
-										if (nextActiveList != null && KickStarter.actionListManager.IsNestedAwaiting (nextActiveList))
-										{
-											nestedAwaitingActiveList = new ActionListManager.NestedAwaitingActiveList (GetActiveList (), null, runtimeActionList);
-											KickStarter.actionListManager.SetActionPendingState (nestedAwaitingActiveList, true);
-										}
-
 										return defaultPauseTime;
-									}
-
-									if (nestedAwaitingActiveList != null && nestedAwaitingActiveList.Conversation)
-									{
-										if (nestedAwaitingActiveList.Conversation.IsOverridingActionList (runtimeActionList))
-										{
-											return defaultPauseTime;
-										}
-									}
-									else
-									{
-										if (conversations == null)
-										{
-											conversations = UnityVersionHandler.FindObjectsOfType<Conversation> ();
-										}
-										foreach (Conversation conversation in conversations)
-										{
-											if (conversation.IsOverridingActionList (runtimeActionList))
-											{
-												nestedAwaitingActiveList = new ActionListManager.NestedAwaitingActiveList (GetActiveList (), conversation, runtimeActionList);
-												KickStarter.actionListManager.SetActionPendingState (nestedAwaitingActiveList, true);
-												return defaultPauseTime;
-											}
-										}
 									}
 								}
 							}
@@ -349,11 +292,6 @@ namespace AC
 				}
 			}
 
-			if (nestedAwaitingActiveList != null)
-			{
-				KickStarter.actionListManager.SetActionPendingState (nestedAwaitingActiveList, false);
-				nestedAwaitingActiveList = null;
-			}
 			EventManager.OnEndActionList -= OnEndActionList;
 			isAwaitingDelay = false;
 			isRunning = false;
@@ -426,12 +364,6 @@ namespace AC
 
 		public override void Skip ()
 		{
-			if (nestedAwaitingActiveList != null)
-			{
-				KickStarter.actionListManager.SetActionPendingState (nestedAwaitingActiveList, false);
-				nestedAwaitingActiveList = null;
-			}
-
 			switch (listSource)
 			{
 				case ListSource.InScene:
@@ -525,6 +457,23 @@ namespace AC
 			}
 			SyncLists (externalParameters, localParameters);
 			SetParametersBase.BulkAssignParameterValues (externalParameters, localParameters, sendingToAsset, isAssetFile);
+		}
+
+
+		private HashSet<Conversation> GetConversations ()
+		{
+			HashSet<Conversation> conversations = new HashSet<Conversation> ();
+			Conversation[] conversationsArray = UnityVersionHandler.FindObjectsOfType<Conversation> ();
+			foreach (Conversation conversation in conversationsArray)
+			{
+				conversations.Add (conversation);
+			}
+
+			if (KickStarter.playerInput.activeConversation && !conversations.Contains (KickStarter.playerInput.activeConversation))
+			{
+				conversations.Add (KickStarter.playerInput.activeConversation);
+			}
+			return conversations;
 		}
 
 

@@ -12,7 +12,6 @@
 
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Events;
 
 namespace AC
 {
@@ -109,6 +108,20 @@ namespace AC
 		{
 			LimitCollisions ();
 			base.Start ();
+		}
+
+
+		protected override void OnEnable ()
+		{
+			EventManager.OnSetPlayer += OnSetPlayer;
+			base.OnEnable ();
+		}
+
+
+		protected override void OnDisable ()
+		{
+			EventManager.OnSetPlayer -= OnSetPlayer;
+			base.OnDisable ();
 		}
 
 
@@ -478,7 +491,7 @@ namespace AC
 
 		protected new void UpdateZoom ()
 		{
-			float zoom = Input.GetAxis ("ZoomMoveable");
+			float zoom = KickStarter.playerInput.InputGetAxis ("ZoomMoveable");
 
 			if ((originalDistanceToCamera <= minZoom && zoom < 0f) || (originalDistanceToCamera >= maxZoom && zoom > 0f))
 			{ }
@@ -524,6 +537,16 @@ namespace AC
 			float angle = Vector3.Angle (KickStarter.CameraMainTransform.forward, tempWorldMousePosition - KickStarter.CameraMainTransform.position);
 
 			return originalDistanceToCamera * Mathf.Cos (angle * Mathf.Deg2Rad);
+		}
+
+		#endregion
+
+
+		#region CustomEvents
+
+		private void OnSetPlayer (Player player)
+		{
+			LimitPlayerCollisions ();
 		}
 
 		#endregion

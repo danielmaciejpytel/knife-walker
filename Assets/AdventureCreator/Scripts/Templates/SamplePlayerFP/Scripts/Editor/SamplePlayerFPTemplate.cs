@@ -79,8 +79,13 @@ namespace AC.Templates.FirstPersonPlayer
 			Resource.References.settingsManager.lockCursorOnStart = true;
 			Resource.References.settingsManager.SetDefaultPlayer (newPlayerPrefab);
 			Resource.References.settingsManager.freeAimSmoothSpeed = 15f;
-			Resource.References.settingsManager.dragWalkThreshold = 10f;
+			Resource.References.settingsManager.dragWalkThreshold = 15f;
 			Resource.References.settingsManager.firstPersonMovementSmoothing = true;
+			
+			if (Resource.References.settingsManager.interactionMethod == AC_InteractionMethod.ChooseHotspotThenInteraction)
+			{
+				Resource.References.settingsManager.acceptUIInputFromCursorLocked = true;
+			}
 
 			EditorUtility.SetDirty (Resource.References.settingsManager);
 

@@ -34,6 +34,8 @@ namespace AC
 		public bool hasAudio;
 		/** If not None, then the Action that ran this speech will end, but the speech line is still active */
 		public ContinueState continueState = ContinueState.None;
+		/** If True, the line will update using Time.unscaledTime */
+		public bool useUnscaledTime;
 
 		/** If True, the assocaited character will not play speaking animation */
 		public bool noAnimation = false;
@@ -100,7 +102,8 @@ namespace AC
 			{
 				speaker = _speaker;
 				noAnimation = _noAnimation;
-				log.speakerName = realName = _speaker.name;
+				log.speakerName = _speaker.name;
+				realName = _speaker.GetName(Options.GetLanguage());
 
 				Player player = _speaker as Player;
 				if (player && player.IsActivePlayer () && !KickStarter.speechManager.usePlayerRealName)
@@ -255,17 +258,17 @@ namespace AC
 		{
 			if (minSkipTime > 0f)
 			{
-				minSkipTime -= Time.deltaTime;
+				minSkipTime -= DeltaTime;
 			}
 
 			if (minDisplayTime > 0f)
 			{
-				minDisplayTime -= Time.deltaTime;
+				minDisplayTime -= DeltaTime;
 			}
 
 			if (pauseEndTime > 0f)
 			{
-				pauseEndTime -= Time.deltaTime;
+				pauseEndTime -= DeltaTime;
 			}
 
 			if (pauseGap)
@@ -285,7 +288,7 @@ namespace AC
 				{
 					if (endTime > 0f)
 					{
-						endTime -= Time.deltaTime;
+						endTime -= DeltaTime;
 					}
 
 					if (audioSource == null)
@@ -299,13 +302,13 @@ namespace AC
 					{
 						if (endTime > 0f)
 						{
-							endTime -= Time.deltaTime;
+							endTime -= DeltaTime;
 						}
 					}
 				}
 			}
 
-			if (hasAudio && !audioSource.isPlaying && Time.timeScale > 0f)
+			if (hasAudio && audioSource && !audioSource.isPlaying && Time.timeScale > 0f)
 			{
 				if (speaker && speaker.isTalking)
 				{
@@ -320,7 +323,7 @@ namespace AC
 				{
 					if (!pauseGap)
 					{
-						scrollAmount += KickStarter.speechManager.textScrollSpeed * Time.deltaTime / 2f / log.fullText.Length;
+						scrollAmount += KickStarter.speechManager.textScrollSpeed * DeltaTime / 2f / log.fullText.Length;
 
 						if (scrollAmount >= 1f)
 						{
@@ -430,7 +433,7 @@ namespace AC
 				{
 					if (continueTime > 0f)
 					{
-						continueTime -= Time.deltaTime;
+						continueTime -= DeltaTime;
 						if (continueTime <= 0f && continueState == ContinueState.None)
 						{
 							continueState = ContinueState.Pending;
@@ -1097,14 +1100,18 @@ namespace AC
 						i = -1;
 						continue;
 					}
-					else if (textPortion2.StartsWith ("[expression:") && speaker)
+					else if (textPortion2.StartsWith ("[expression:"))
 					{
 						// Expression change
 						int endIndex = textPortion2.IndexOf ("]");
 						string expressionText = textPortion2.Substring (12, endIndex - 12);
-						int expressionID = speaker.GetExpressionID (expressionText);
+						
+						if (speaker)
+						{
+							int expressionID = speaker.GetExpressionID (expressionText);
+							speechGaps.Add (new SpeechGap (i, expressionID));
+						}
 
-						speechGaps.Add (new SpeechGap (i, expressionID));
 						_text = textPortion1 + textPortion2.Substring (endIndex + 1);
 
 						i = -1;
@@ -1629,7 +1636,11 @@ namespace AC
 
 				if (speaker)
 				{
-					if (speaker.speechAudioSource)
+					if (!speaker.gameObject.activeInHierarchy)
+					{
+						ACDebug.LogWarning ("Cannt assign speech audio to " + speaker.name + " because they are not active within the scene.", speaker);
+					}
+					else if (speaker.speechAudioSource)
 					{
 						audioSource = speaker.speechAudioSource;
 						speaker.SetSpeechVolume (Options.optionsData.speechVolume);
@@ -1679,63 +1690,24 @@ namespace AC
 
 
 		/** The display name of the speaking character */
-		public string SpeakerName
-		{
-			get
-			{
-				return log.speakerName;
-			}
-		}
-
+		public string SpeakerName => log.speakerName;
 
 		/** The ID number of the line, as set by the Speech Manager */
-		public int LineID
-		{
-			get
-			{
-				return log.lineID;
-			}
-		}
-
+		public int LineID => log.lineID;
 
 		/** The full display text of the line */
-		public string FullText
-		{
-			get
-			{
-				return log.fullText;
-			}
-		}
-
+		public string FullText => log.fullText;
 
 		/** The line's associated SpeechLine class, provided it's been gathered by the Speech Manager */
-		public SpeechLine SpeechLine
-		{
-			get
-			{
-				return KickStarter.speechManager.GetLine (LineID);
-			}
-		}
-
+		public SpeechLine SpeechLine => KickStarter.speechManager.GetLine (LineID);
 
 		/** The index of the current end of the line, if speech-scrolling is enabled in the Speech Manager */
-		public int CurrentCharIndex
-		{
-			get
-			{
-				return currentCharIndex;
-			}
-		}
-
+		public int CurrentCharIndex => currentCharIndex;
 
 		/** The original text, without stripping of tokens or tags */
-		public string OriginalText
-		{
-			get
-			{
-				return originalText;
-			}
-		}
+		public string OriginalText => originalText;
+
+		private float DeltaTime => useUnscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
 
 		#endregion
 

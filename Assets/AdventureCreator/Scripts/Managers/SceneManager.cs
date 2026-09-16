@@ -47,15 +47,14 @@ namespace AC
 		private MovingTurning tempMovingTurning = MovingTurning.Unity2D;
 		
 		private int selectedSceneObject;
-		private string[] prefabTextArray;
 		
-		private ScenePrefab activeScenePrefab;
 		private List<ScenePrefabCollection> scenePrefabCollections = new List<ScenePrefabCollection> ();
 		[SerializeField] private List<SceneManagerPrefabData> sceneManagerPrefabDatas = new List<SceneManagerPrefabData> ();
 		
 		private string newFolderName = "";
 		private string newPrefabName;
-		private bool positionHotspotOverMesh = false;
+		private Renderer positionHotspotOverMesh;
+		private SpriteRenderer positionHotspotOverSprite;
 		private static GUILayoutOption buttonWidth = GUILayout.MaxWidth (120f);
 
 		private bool showStructure = true;
@@ -64,6 +63,13 @@ namespace AC
 		private bool showVisibility = true;
 		private bool showPrefabs = true;
 		private bool showAttributes = true;
+		
+		/*private ScenePrefab hoverScenePrefab;
+		private Rect hoverSceneRect;
+		private const int PreviewBoxWidth = 300;
+		private const int PreviewBoxHeight = 250;*/
+
+		private List<GameObject> existingPrefabs = new List<GameObject> ();
 		
 		private Texture2D hotspotIcon, triggerIcon, collisionIcon, markerIcon, playerStartIcon, navMeshIcon;
 
@@ -76,11 +82,15 @@ namespace AC
 			}
 		}
 
-
 		/** Shows the GUI. */
 		public void ShowGUI (Rect windowRect, System.Action<ActionList> showALEditor, System.Action<ActionListAsset> showALAEditor)
 		{
 			ShowSettingsGUI (windowRect, showALEditor, showALAEditor);
+
+			/*if (hoverScenePrefab != null && ACEditorPrefs.DrawPrefabPreviews)
+			{
+				DrawPreviewGUI (hoverScenePrefab, windowRect, new Vector2 (hoverSceneRect.center.x, hoverSceneRect.y));
+			}*/
 
 			if (GUI.changed)
 			{
@@ -95,6 +105,28 @@ namespace AC
 		}
 
 
+		/*private void DrawPreviewGUI (ScenePrefab prefab, Rect windowRect, Vector2 position)
+		{
+			try
+			{
+				position.x -= (PreviewBoxWidth * 0.5f);
+				position.y -= (PreviewBoxHeight + 10);
+
+				if (position.x < 0f) position.x = 0f;
+				if (position.x > windowRect.width - PreviewBoxWidth - 12) position.x = windowRect.width - PreviewBoxWidth - 12;
+
+				GUILayout.BeginArea (new Rect (position.x, position.y, PreviewBoxWidth, PreviewBoxHeight), Resource.NodeSkin.customStyles[EditorGUIUtility.isProSkin ? 43 : 44]);
+
+				GUI.Label (new Rect (10, 10, 280, 29), prefab.label, CustomStyles.PreviewHeader);
+				GUI.DrawTexture (new Rect (10, 40, 280, 200), Resources.Load ("PreviewTestTrigger") as Texture2D, ScaleMode.StretchToFill);
+				GUI.Label (new Rect (10, 170, 280, 70), prefab.helpText, CustomStyles.PreviewDescription);
+
+				GUILayout.EndArea ();
+			}
+			catch {}
+		}*/
+
+
 		private void ShowSettingsGUI (Rect windowRect, System.Action<ActionList> showALEditor, System.Action<ActionListAsset> showALAEditor)
 		{
 			string sceneName = MultiSceneChecker.EditActiveScene ();
@@ -102,7 +134,6 @@ namespace AC
 			{
 				EditorGUILayout.LabelField ("Editing scene: '" + sceneName + "'", EditorStyles.boldLabel);
 				EditorGUILayout.Space ();
-				GetPrefabsInScene ();
 			}
 
 			SceneStructureGUI ();
@@ -367,7 +398,7 @@ namespace AC
 				EditorGUILayout.BeginHorizontal ();
 				if (KickStarter.sceneSettings.actionListSource == ActionListSource.InScene)
 				{
-					KickStarter.sceneSettings.cutsceneOnStart = CustomGUILayout.AutoCreateField <Cutscene> ("On start:", KickStarter.sceneSettings.cutsceneOnStart, AutoCreateCutsceneOnStart, "AC.KickStarter.sceneSettings.cutsceneOnStart", "The Cutscene to run whenever the game beings from this scene, or when this scene is visited during gameplay");
+					KickStarter.sceneSettings.cutsceneOnStart = CustomGUILayout.AutoCreateField <Cutscene> ("On start:", KickStarter.sceneSettings.cutsceneOnStart, AutoCreateCutsceneOnStart, "AC.KickStarter.sceneSettings.cutsceneOnStart", "The Cutscene to run whenever the game begins from this scene, or when this scene is visited during gameplay");
 					if (KickStarter.sceneSettings.cutsceneOnStart && GUILayout.Button (string.Empty, CustomStyles.IconNodes))
 					{
 						showALEditor.Invoke (KickStarter.sceneSettings.cutsceneOnStart);
@@ -913,7 +944,6 @@ namespace AC
 		public void RegneratePrefabCache ()
 		{
 			DeclareScenePrefabs ();
-			GetPrefabsInScene ();
 		}
 
 
@@ -922,42 +952,13 @@ namespace AC
 			if (scenePrefabCollections.Count == 0 || GUI.changed)
 			{
 				RegneratePrefabCache ();
-
-				bool found = false;
-				foreach (ScenePrefabCollection scenePrefabCollection in scenePrefabCollections)
-				{
-					foreach (ScenePrefab scenePrefab in scenePrefabCollection.ScenePrefabs)
-					{
-						if (scenePrefab == activeScenePrefab)
-						{
-							found = true;
-							break; 
-						}
-					}
-				}
-
-				if (!found)
-				{
-					activeScenePrefab = null;
-				}
 			}
 
 			showPrefabs = CustomGUILayout.ToggleHeader (showPrefabs, "Scene prefabs");
 			if (showPrefabs)
 			{
-				if (activeScenePrefab == null)
-				{
-					if (scenePrefabCollections.Count > 0 && scenePrefabCollections[0].ScenePrefabs.Count > 0)
-					{
-						activeScenePrefab = scenePrefabCollections[0].ScenePrefabs[0];
-					}
-					if (activeScenePrefab == null)
-					{
-						return;
-					}
-				}
-
 				CustomGUILayout.BeginVertical ();
+
 				#if NEW_PREFABS
 				GameObject prefabRoot = UnityVersionHandler.GetPrefabStageRoot ();
 				if (prefabRoot)
@@ -965,119 +966,6 @@ namespace AC
 					EditorGUILayout.HelpBox ("Currently editing prefab " + prefabRoot.name + " - new objects added here will be added to this prefab.", MessageType.Info);
 				}
 				#endif
-
-				GUILayout.BeginHorizontal ();
-
-				GUIContent prefabHeader = new GUIContent ("  " + activeScenePrefab.label, activeScenePrefab.icon);
-				EditorGUILayout.LabelField (prefabHeader, EditorStyles.boldLabel, GUILayout.Height (40f));
-
-				if (windowRect.width > 300f)
-				{
-					EditorGUILayout.HelpBox (activeScenePrefab.helpText, MessageType.Info);
-				}
-				GUILayout.EndHorizontal ();
-			
-				EditorGUILayout.Space ();
-				
-				GUILayout.BeginHorizontal ();
-				EditorGUILayout.LabelField ("New object name:", GUILayout.Width (120f));
-				newPrefabName = EditorGUILayout.TextField (newPrefabName);
-				
-				if (GUILayout.Button ("Add new", GUILayout.Width (60f)))
-				{
-					if (activeScenePrefab.prefab)
-					{
-						GameObject newOb = (GameObject) PrefabUtility.InstantiatePrefab (activeScenePrefab.prefab);
-						newOb.name = activeScenePrefab.prefab.name;
-
-						#if NEW_PREFABS
-						PrefabUtility.UnpackPrefabInstance (newOb, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
-						#endif
-						Undo.RegisterCreatedObjectUndo (newOb, "Created " + newOb.name);
-						Selection.activeGameObject = newOb;
-					}
-					else
-					{
-						string fileName = assetFolder + activeScenePrefab.prefabPath + ".prefab";
-						GameObject newOb = (GameObject) PrefabUtility.InstantiatePrefab (AssetDatabase.LoadAssetAtPath (fileName, typeof (GameObject)));
-						
-						if (newPrefabName != null && newPrefabName != "" && newPrefabName.Length > 0)
-						{
-							newOb.name = newPrefabName;
-							newPrefabName = string.Empty;
-						}
-
-						RegisterNewObject (newOb, true);
-						PutInFolder (newOb, activeScenePrefab.sceneFolder);
-						
-						if (CanWrapHotspot () && positionHotspotOverMesh)
-						{
-							positionHotspotOverMesh = false;
-							
-							Renderer r = Selection.activeGameObject.GetComponent <Renderer>();
-							newOb.transform.position = r.bounds.center;
-							Vector3 scale = r.bounds.size;
-							scale.x = Mathf.Max (scale.x, 0.01f);
-							scale.y = Mathf.Max (scale.y, 0.01f);
-							scale.z = Mathf.Max (scale.z, 0.01f);
-							newOb.transform.localScale = scale;
-						}
-						Selection.activeGameObject = newOb;
-					}
-
-					GetPrefabsInScene ();
-				}
-
-				GUILayout.EndHorizontal ();
-
-				if (CanWrapHotspot ())
-				{
-					string positionLabel = "Position over selected " + ((Selection.activeGameObject.GetComponent <SpriteRenderer>() != null) ? "sprite" : "mesh") + "?";
-					positionHotspotOverMesh = EditorGUILayout.ToggleLeft (positionLabel, positionHotspotOverMesh);
-				}
-				
-				EditorGUILayout.Space ();
-				
-				if (GUI.changed || prefabTextArray == null)
-				{
-					GetPrefabsInScene ();
-				}
-
-				if (prefabTextArray.Length > 0)
-				{
-					EditorGUILayout.Space ();
-					EditorGUILayout.LabelField ("Existing " + activeScenePrefab.label + " objects:");
-					EditorGUILayout.BeginHorizontal ();
-					selectedSceneObject = EditorGUILayout.Popup (selectedSceneObject, prefabTextArray);
-				
-					if (GUILayout.Button ("Select", EditorStyles.miniButtonLeft))
-					{
-						if (Type.GetType ("AC." + activeScenePrefab.componentName) != null)
-						{
-							MonoBehaviour[] objects = UnityVersionHandler.FindObjectsOfType (Type.GetType ("AC." + activeScenePrefab.componentName)) as MonoBehaviour [];
-							if (objects != null && objects.Length > selectedSceneObject && objects[selectedSceneObject].gameObject != null)
-							{
-								Selection.activeGameObject = objects[selectedSceneObject].gameObject;
-							}
-						}
-						else if (!string.IsNullOrEmpty (activeScenePrefab.componentName))
-						{
-							MonoBehaviour[] objects = UnityVersionHandler.FindObjectsOfType (Type.GetType (activeScenePrefab.componentName)) as MonoBehaviour [];
-							if (objects != null && objects.Length > selectedSceneObject && objects[selectedSceneObject].gameObject != null)
-							{
-								Selection.activeGameObject = objects[selectedSceneObject].gameObject;
-							}
-						}
-					
-					}
-					if (GUILayout.Button ("Refresh", EditorStyles.miniButtonRight))
-					{
-						GetPrefabsInScene ();
-					}
-
-					EditorGUILayout.EndHorizontal ();
-				}
-
 				ListAllPrefabs (windowRect);
 
 				CustomGUILayout.EndVertical ();
@@ -1087,19 +975,17 @@ namespace AC
 		
 		private void ListAllPrefabs (Rect windowRect)
 		{
-			EditorGUILayout.Space ();
-
-			GUISkin testSkin = (GUISkin) Resources.Load ("SceneManagerSkin");
-			GUI.skin = testSkin;
-			
 			foreach (ScenePrefabCollection scenePrefabCollection in scenePrefabCollections)
 			{
 				bool isEven = false;
-				EditorGUILayout.LabelField (scenePrefabCollection.CategoryName, CustomStyles.smallCentre);
+
+				if (scenePrefabCollections.IndexOf (scenePrefabCollection) > 0) EditorGUILayout.Space ();
+				EditorGUILayout.LabelField (scenePrefabCollection.CategoryName,  CustomStyles.PrefabHeader);
+				EditorGUILayout.Space ();
 				
 				EditorGUILayout.BeginHorizontal ();
 				
-				float buttonWidth = windowRect.width / 2f - 17f;
+				float buttonWidth = windowRect.width / 2f - 10f;
 
 				foreach (ScenePrefab prefab in scenePrefabCollection.ScenePrefabs)
 				{
@@ -1107,31 +993,34 @@ namespace AC
 
 					if (prefab.icon && buttonWidth > 65f)
 					{
-						if (GUILayout.Button (new GUIContent (" " + prefab.label, prefab.icon), GUILayout.Width (buttonWidth)))
+						if (GUILayout.Button (new GUIContent (" " + prefab.label, prefab.icon, prefab.helpText), CustomStyles.PrefabButton, GUILayout.MaxWidth (buttonWidth)))
 						{
 							GUI.skin = null;
-							ClickPrefabButton (prefab);
-							GUI.skin = testSkin;
+							ClickPrefabButton (prefab, Event.current.button);
 						}
 					}
 					else if (prefab.icon)
 					{
-						if (GUILayout.Button (new GUIContent (prefab.icon), GUILayout.Width (buttonWidth)))
+						if (GUILayout.Button (new GUIContent (prefab.icon, prefab.helpText), CustomStyles.PrefabButton, GUILayout.Width (buttonWidth)))
 						{
 							GUI.skin = null;
-							ClickPrefabButton (prefab);
-							GUI.skin = testSkin;
+							ClickPrefabButton (prefab, Event.current.button);
 						}
 					}
 					else
 					{
-						if (GUILayout.Button (new GUIContent (" " + prefab.label)))
+						if (GUILayout.Button (new GUIContent (" " + prefab.label, prefab.helpText), CustomStyles.PrefabButton))
 						{
 							GUI.skin = null;
-							ClickPrefabButton (prefab);
-							GUI.skin = testSkin;
+							ClickPrefabButton (prefab, Event.current.button);
 						}
 					}
+
+					/*if (Event.current.type == EventType.Repaint && GUILayoutUtility.GetLastRect ().Contains (Event.current.mousePosition))
+					{
+						hoverScenePrefab = prefab;
+						hoverSceneRect = GUILayoutUtility.GetLastRect ();
+					}*/
 					
 					if (!isEven)
 					{
@@ -1147,11 +1036,9 @@ namespace AC
 				EditorGUILayout.EndHorizontal ();
 				//GUILayout.EndVertical ();
 			}
-
-			GUI.skin = null;
 		}
 
-
+		
 		private static void RegisterNewObject (GameObject newOb, bool canAddToPrefab = false)
 		{
 			if (newOb == null) return;
@@ -1172,103 +1059,148 @@ namespace AC
 		}
 		
 		
-		private void ClickPrefabButton (ScenePrefab _prefab)
+		private void ClickPrefabButton (ScenePrefab _prefab, int mouseButton)
 		{
-			if (activeScenePrefab == _prefab)
+			if (mouseButton > 1) return;
+
+			if (mouseButton == 1)
 			{
-				GameObject newOb = null;
-
-				if (activeScenePrefab.prefab)
+				existingPrefabs.Clear ();
+				if (Type.GetType ("AC." + _prefab.componentName) != null)
 				{
-					newOb = (GameObject) PrefabUtility.InstantiatePrefab (activeScenePrefab.prefab);
-					newOb.name = activeScenePrefab.prefab.name;
-
-					#if NEW_PREFABS
-					PrefabUtility.UnpackPrefabInstance (newOb, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
-					#endif
-					Undo.RegisterCreatedObjectUndo (newOb, "Created " + newOb.name);
-					Selection.activeGameObject = newOb;
-				}
-				else
-				{
-					// Clicked twice, add new
-					string fileName = assetFolder + _prefab.prefabPath + ".prefab";
-					newOb = (GameObject) PrefabUtility.InstantiatePrefab (AssetDatabase.LoadAssetAtPath (fileName, typeof (GameObject)));
-
-					RegisterNewObject (newOb, true);
-					
-					if (newOb.GetComponent <GameCamera2D>())
+					var objects = UnityVersionHandler.FindObjectsOfType (Type.GetType ("AC." + _prefab.componentName)) as MonoBehaviour [];
+					foreach (MonoBehaviour _object in objects)
 					{
-						newOb.GetComponent <GameCamera2D>().SetCorrectRotation ();
+						if (UnityVersionHandler.ObjectIsInActiveScene (_object.gameObject) && !existingPrefabs.Contains (_object.gameObject))
+						{
+							existingPrefabs.Add (_object.gameObject);
+						}
+					}
+				}
+				else if (!string.IsNullOrEmpty (_prefab.componentName))
+				{
+					var objects = UnityVersionHandler.FindObjectsOfType (Type.GetType (_prefab.componentName)) as MonoBehaviour [];
+					foreach (MonoBehaviour _object in objects)
+					{
+						if (UnityVersionHandler.ObjectIsInActiveScene (_object.gameObject) && !existingPrefabs.Contains (_object.gameObject))
+						{
+							existingPrefabs.Add (_object.gameObject);
+						}
 					}
 				}
 				
-				if (newOb)
+				GenericMenu menu = new GenericMenu ();
+				int i = 0;
+				for (i = 0; i < existingPrefabs.Count; i++)
 				{
-					PutInFolder (newOb, _prefab.sceneFolder);
-					EditorGUIUtility.PingObject (newOb);
+					menu.AddItem (new GUIContent (existingPrefabs[i].name), false, ExistingPrefabsCallback, i);
 				}
+				menu.ShowAsContext ();
+				
+				return;
+			}
+
+			// Clicked twice, add new
+			GameObject newOb = null;
+
+			if (_prefab.onCreateBefore != null) _prefab.onCreateBefore ();
+
+			if (!_prefab.autoCreate && positionHotspotOverSprite)
+			{
+				if (_prefab.onCreateAfter != null) _prefab.onCreateAfter (null);
+				return;
 			}
 			
-			activeScenePrefab = _prefab;
-			GetPrefabsInScene ();
-		}
-		
-		
-		private bool CanWrapHotspot ()
-		{
-			if (Selection.activeGameObject != null && activeScenePrefab != null && activeScenePrefab.label.Contains ("Hotspot") && Selection.activeGameObject.GetComponent <Renderer>())
+			if (_prefab.prefab)
 			{
-				return true;
+				newOb = (GameObject) PrefabUtility.InstantiatePrefab (_prefab.prefab);
+				newOb.name = _prefab.prefab.name;
+
+				if (_prefab.onCreateAfter != null) _prefab.onCreateAfter (newOb);
+
+				#if NEW_PREFABS
+				PrefabUtility.UnpackPrefabInstance (newOb, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
+				#endif
+				Undo.RegisterCreatedObjectUndo (newOb, "Created " + newOb.name);
+				Selection.activeGameObject = newOb;
+
 			}
-			return false;
+			else
+			{
+				string fileName = assetFolder + _prefab.prefabPath + ".prefab";
+				newOb = (GameObject) PrefabUtility.InstantiatePrefab (AssetDatabase.LoadAssetAtPath (fileName, typeof (GameObject)));
+
+				if (_prefab.onCreateAfter != null) _prefab.onCreateAfter (newOb);
+
+				RegisterNewObject (newOb, true);
+			}
+			
+			if (newOb)
+			{
+				PutInFolder (newOb, _prefab.sceneFolder);
+				EditorGUIUtility.PingObject (newOb);
+			}
 		}
 
 
+		private void ExistingPrefabsCallback (object obj)
+		{
+			int clickedIndex = (int) obj;
+			if (existingPrefabs.Count > 0 && clickedIndex < existingPrefabs.Count)
+			{
+				EditorGUIUtility.PingObject (existingPrefabs[clickedIndex]);
+			}
+		}
+		
+		
 		private void DeclareScenePrefabs ()
 		{
 			scenePrefabCollections.Clear ();
 
 			if (SceneSettings.CameraPerspective == CameraPerspective.ThreeD)
 			{
-				AddScenePrefab ("Camera", new ScenePrefab ("GameCamera", "Camera/GameCamera", "_GameCameras", "The standard camera type for 3D games.", "GameCamera"));
-				AddScenePrefab ("Camera", new ScenePrefab ("GameCamera Animated", "Camera/GameCameraAnimated", "_GameCameras", "Plays an Animation Clip when active, or syncs it with its target's position.", "GameCameraAnimated"));
-				AddScenePrefab ("Camera", new ScenePrefab ("GameCamera Third-person", "Camera/GameCameraThirdPerson", "_GameCameras", "Rigidly follows its target, but can still be rotated.", "GameCameraThirdPerson"));
-				AddScenePrefab ("Camera", new ScenePrefab ("SimpleCamera", "Camera/SimpleCamera", "_GameCameras", "A stationary but lightweight 3D camera.", "_Camera"));
+				AddScenePrefab ("Camera", new ScenePrefab ("Standard", "Camera/GameCamera", "_GameCameras", "A camera that can move, rotate, and change its FOV according to its target's position.", "GameCamera"));
+				//AddScenePrefab ("Camera", new ScenePrefab ("GameCamera Animated", "Camera/GameCameraAnimated", "_GameCameras", "Plays an Animation Clip when active, or syncs it with its target's position.", "GameCameraAnimated"));
+				AddScenePrefab ("Camera", new ScenePrefab ("Third-person", "Camera/GameCameraThirdPerson", "_GameCameras", "A camera that orbits its target, for over-the-shoulder behaviour.", "GameCameraThirdPerson"));
+				AddScenePrefab ("Camera", new ScenePrefab ("Array", "Camera/GameCameraArray", "_GameCameras", "A camera whose position is interpolated based on its proximity to an array of child cameras.", "GameCameraArray"));
+				AddScenePrefab ("Camera", new ScenePrefab ("Stationary", "Camera/SimpleCamera", "_GameCameras", "A static camera that doesn't move unless via a custom script.", "_Camera"));
 			}
 			else
 			{
 				if (SceneSettings.CameraPerspective == CameraPerspective.TwoD)
 				{
-					AddScenePrefab ("Camera", new ScenePrefab ("GameCamera 2D", "Camera/GameCamera2D", "_GameCameras", "The standard camera type for 2D games.", "GameCamera2D"));
+					AddScenePrefab ("Camera", new ScenePrefab ("Standard", "Camera/GameCamera2D", "_GameCameras", "A camera that can pan sideways according to its target's position and facing direction.", "GameCamera2D", string.Empty, null, OnCreateAfter_Camera2D));
 
 					if (SceneSettings.IsUnity2D ())
 					{
-						AddScenePrefab ("Camera", new ScenePrefab ("GameCamera 2D Drag", "Camera/GameCamera2DDrag", "_GameCameras", "A 2D camera that can be panned by dragging the mouse/touch.", "GameCamera2D"));
-						AddScenePrefab ("Camera", new ScenePrefab ("TintMap", "Camera/TintMap", "_SetGeometry", "A texture used to tint 2D sprites.", "TintMap"));
+						AddScenePrefab ("Camera", new ScenePrefab ("Drag", "Camera/GameCamera2DDrag", "_GameCameras", "A camera that can be panned in 2D by dragging the mouse/touch.", "GameCamera2D"));
+						//AddScenePrefab ("Camera", new ScenePrefab ("TintMap", "Camera/TintMap", "_SetGeometry", "A texture used to tint 2D sprites.", "TintMap"));
 					}
 				}
 				else
 				{
-					AddScenePrefab ("Camera", new ScenePrefab ("GameCamera 2.5D", "Camera/GameCamera2.5D", "_GameCameras", "A stationary camera that can display images in the background.", "GameCamera25D"));
+					AddScenePrefab ("Camera", new ScenePrefab ("2.5D Camera", "Camera/GameCamera2.5D", "_GameCameras", "A stationary camera that can display images in the background.", "GameCamera25D", null, OnCreateAfter_25DCamera));
 					AddScenePrefab ("Camera", new ScenePrefab ("Background Image", "SetGeometry/BackgroundImage", "_BackgroundImages", "A container for a 2.5D camera's background image.", "BackgroundImage"));
 					AddScenePrefab ("Camera", new ScenePrefab ("Scene sprite", "SetGeometry/SceneSprite", "_SetGeometry", "An in-scene sprite for 2.5D games.", "", "SceneSprite"));
 				}
 			}
+
+			AddScenePrefab ("Characters", new ScenePrefab ("Player", string.Empty, string.Empty, "A character that can be controlled by the player.", string.Empty, "Player", OnCreateBefore_Player));
+			AddScenePrefab ("Characters", new ScenePrefab ("NPC", string.Empty, string.Empty, "A non-player character that is controlled through Actions.", string.Empty, "NPC", OnCreateBefore_NPC));
 			
 			AddScenePrefab ("Logic", new ScenePrefab ("Arrow prompt", "Logic/ArrowPrompt", "_ArrowPrompts", "An on-screen directional prompt for the player.", "ArrowPrompt"));
-			AddScenePrefab ("Logic", new ScenePrefab ("Conversation", "Logic/Conversation", "_Conversations", "Stores a list of Dialogue Options, from which the player can choose.", "Conversation"));
-			AddScenePrefab ("Logic", new ScenePrefab ("Container", "Logic/Container", "_Containers", "Can store a list of Inventory Items, for the player to retrieve and add to.", "Container"));
+			AddScenePrefab ("Logic", new ScenePrefab ("Conversation", "Logic/Conversation", "_Conversations", "Stores a list of dialogue options, that the player can choose from.", "Conversation"));
+			AddScenePrefab ("Logic", new ScenePrefab ("Container", "Logic/Container", "_Containers", "Store a list of Inventory Items within the scene, for the player to retrieve and add to.", "Container"));
 			AddScenePrefab ("Logic", new ScenePrefab ("Cutscene", "Logic/Cutscene", "_Cutscenes", "A sequence of Actions that can form a cinematic.", "Cutscene"));
 			AddScenePrefab ("Logic", new ScenePrefab ("Dialogue Option", "Logic/DialogueOption", "_DialogueOptions", "An option available to the player when a Conversation is active.", "DialogueOption"));
 			
 			if (SceneSettings.IsUnity2D ())
 			{
-				AddScenePrefab ("Logic", new ScenePrefab ("Hotspot 2D", "Logic/Hotspot2D", "_Hotspots", "A portion of the scene that can be interacted with.", "Hotspot"));
+				AddScenePrefab ("Logic", new ScenePrefab ("Hotspot 2D", "Logic/Hotspot2D", "_Hotspots", "A portion of the scene that can be interacted with.", "Hotspot", string.Empty, OnCreateBefore_Hotspot2D, OnCreateAfter_Hotspot, false));
 			}
 			else
 			{
-				AddScenePrefab ("Logic", new ScenePrefab ("Hotspot", "Logic/Hotspot", "_Hotspots", "A portion of the scene that can be interacted with.", "Hotspot"));
+				AddScenePrefab ("Logic", new ScenePrefab ("Hotspot", "Logic/Hotspot", "_Hotspots", "A portion of the scene that can be interacted with.", "Hotspot", string.Empty, OnCreateBefore_Hotspot, OnCreateAfter_Hotspot));
 			}
 			
 			AddScenePrefab ("Logic", new ScenePrefab ("Interaction", "Logic/Interaction", "_Interactions", "A sequence of Actions that run when a Hotspot is activated.", "Interaction"));
@@ -1312,7 +1244,7 @@ namespace AC
 			else
 			{
 				AddScenePrefab ("Navigation", new ScenePrefab ("Collision Cube", "Navigation/CollisionCube", "_CollisionCubes", "Blocks Character movement, as well as cursor clicks if placed on the Default layer.", "_Collision"));
-				AddScenePrefab ("Navigation", new ScenePrefab ("Collision Cylinder", "Navigation/CollisionCylinder", "_CollisionCylinders", "Blocks Character movement, as well as cursor clicks if placed on the Default layer.", "_Collision", "_CollisionCylinder"));
+			//	AddScenePrefab ("Navigation", new ScenePrefab ("Collision Cylinder", "Navigation/CollisionCylinder", "_CollisionCylinders", "Blocks Character movement, as well as cursor clicks if placed on the Default layer.", "_Collision", "_CollisionCylinder"));
 				AddScenePrefab ("Navigation", new ScenePrefab ("Marker", "Navigation/Marker", "_Markers", "A point in the scene used by Characters and objects.", "Marker"));
 				AddScenePrefab ("Navigation", new ScenePrefab ("Random Marker", "Navigation/RandomMarker", "_Markers", "A random point in the scene used by Characters and objects.", "Marker"));
 			}
@@ -1349,6 +1281,127 @@ namespace AC
 		}
 
 
+		private void OnCreateAfter_25DCamera()
+		{
+			#if URPIsPresent
+			URP_25D urp25D;
+			#if UNITY_6000_5_OR_NEWER
+			urp25D = UnityEngine.Object.FindAnyObjectByType <URP_25D> ();
+			#elif UNITY_2022_3_OR_NEWER
+			urp25D = UnityEngine.Object.FindFirstObjectByType <URP_25D> ();
+			#else
+			urp25D = UnityEngine.Object.FindObjectOfType <URP_25D> ();
+			#endif
+			if (urp25D == null)
+			{
+				KickStarter.mainCamera.gameObject.AddComponent<URP_25D>();
+				ACDebug.Log("2.5D game using URP detected - adding AC's URP_25D component to MainCamera.", this);
+			}
+			#endif
+		}
+
+
+		private void OnCreateBefore_NPC ()
+		{
+			if (Selection.activeGameObject != null && Selection.activeGameObject.GetComponent <Renderer> () && Selection.activeGameObject.GetComponent<Char> () == null)
+			{
+				CharacterWizardWindow.InitForNPC (Selection.activeGameObject);
+			}
+			else
+			{
+				CharacterWizardWindow.InitForNPC ();
+			}
+		}
+
+
+
+		private void OnCreateBefore_Player ()
+		{
+			if (Selection.activeGameObject != null && Selection.activeGameObject.GetComponent <Renderer> () && Selection.activeGameObject.GetComponent<Char> () == null)
+			{
+				CharacterWizardWindow.InitForPlayer (Selection.activeGameObject);
+			}
+			else
+			{
+				CharacterWizardWindow.InitForPlayer ();
+			}
+		}
+
+
+		private void OnCreateBefore_Hotspot2D ()
+		{
+			positionHotspotOverMesh = null;
+			positionHotspotOverSprite = null;
+
+			if (SceneSettings.IsUnity2D () && Selection.activeGameObject != null && Selection.activeGameObject.GetComponent <SpriteRenderer> () && Selection.activeGameObject.GetComponent<SpriteRenderer> ().sprite)
+			{
+				if (EditorUtility.DisplayDialog ("Convert sprite to Hotspot?", "Do you want to convert the currently selected sprite, " + Selection.activeGameObject.name + ", to a Hotspot?", "Yes", "No"))
+				{
+					positionHotspotOverSprite = Selection.activeGameObject.GetComponent <SpriteRenderer>();
+				}
+			}
+		}
+
+
+		private void OnCreateBefore_Hotspot ()
+		{
+			positionHotspotOverMesh = null;
+			positionHotspotOverSprite = null;
+
+			if (Selection.activeGameObject != null && Selection.activeGameObject.GetComponent <Renderer> ())
+			{
+				if (EditorUtility.DisplayDialog ("Auto-set Hotspot position?", "The currently-selected object, " + Selection.activeGameObject.name + ", has a " +  ((Selection.activeGameObject.GetComponent <SpriteRenderer>() != null) ? "sprite" : "mesh") + ".  Position the new Hotspot over it?", "Yes", "No"))
+				{
+					positionHotspotOverMesh = Selection.activeGameObject.GetComponent <Renderer>();
+				}
+			}
+		}
+
+
+		private void OnCreateAfter_Hotspot (GameObject gameObject)
+		{
+			if (positionHotspotOverSprite)
+			{
+				if (positionHotspotOverSprite.GetComponent<Collider2D> () == null)
+				{
+					var polygonCollider = positionHotspotOverSprite.gameObject.AddComponent<PolygonCollider2D> ();
+					polygonCollider.isTrigger = true;
+				}
+
+				if (positionHotspotOverSprite.GetComponent<Hotspot> () == null)
+				{
+					var hotspot = positionHotspotOverSprite.gameObject.AddComponent<Hotspot> ();
+				}
+			
+				if (positionHotspotOverSprite.gameObject.layer == LayerMask.NameToLayer("Ignore Raycast"))
+				{
+					positionHotspotOverSprite.gameObject.layer = LayerMask.NameToLayer("Default");
+				}
+				positionHotspotOverSprite = null;
+			}
+			else if (positionHotspotOverMesh)
+			{
+				gameObject.transform.position = positionHotspotOverMesh.bounds.center;
+				Vector3 scale = positionHotspotOverMesh.bounds.size;
+				scale.x = Mathf.Max (scale.x, 0.01f);
+				scale.y = Mathf.Max (scale.y, 0.01f);
+				scale.z = Mathf.Max (scale.z, 0.01f);
+				gameObject.transform.localScale = scale;
+
+				positionHotspotOverMesh = null;
+			}
+		}
+
+
+		private void OnCreateAfter_Camera2D (GameObject gameObject)
+		{
+			if (gameObject.GetComponent <GameCamera2D>())
+			{
+				gameObject.GetComponent <GameCamera2D>().SetCorrectRotation ();
+			}
+		}
+
+
 		private void AddScenePrefab (string categoryName, ScenePrefab scenePrefab)
 		{
 			foreach (ScenePrefabCollection scenePrefabCollection in scenePrefabCollections)
@@ -1363,49 +1416,6 @@ namespace AC
 			ScenePrefabCollection newScenePrefabCollection = new ScenePrefabCollection (categoryName);
 			newScenePrefabCollection.ScenePrefabs.Add (scenePrefab);
 			scenePrefabCollections.Add (newScenePrefabCollection);
-		}
-
-
-		/** Populates the list of 'Existing prefabs' for the currently-selected prefab button in the Scene Manager GUI. */
-		public void GetPrefabsInScene ()
-		{
-			List<string> titles = new List<string>();
-			MonoBehaviour[] objects;
-			int i=1;
-
-			if (activeScenePrefab == null) return;
-
-			if (Type.GetType ("AC." + activeScenePrefab.componentName) != null)
-			{
-				objects = UnityVersionHandler.FindObjectsOfType (Type.GetType ("AC." + activeScenePrefab.componentName)) as MonoBehaviour [];
-				foreach (MonoBehaviour _object in objects)
-				{
-					if (UnityVersionHandler.ObjectIsInActiveScene (_object.gameObject))
-					{
-						titles.Add (i.ToString () + ": " + _object.gameObject.name);
-						i++;
-					}
-				}
-			}
-			else if (!string.IsNullOrEmpty (activeScenePrefab.componentName))
-			{
-				objects = UnityVersionHandler.FindObjectsOfType (Type.GetType (activeScenePrefab.componentName)) as MonoBehaviour [];
-				foreach (MonoBehaviour _object in objects)
-				{
-					if (UnityVersionHandler.ObjectIsInActiveScene (_object.gameObject))
-					{
-						titles.Add (i.ToString () + ": " + _object.gameObject.name);
-						i++;
-					}
-				}
-			}
-			
-			if (i == 1)
-			{
-				titles.Add ("(None found in scene)");
-			}
-			
-			prefabTextArray = titles.ToArray ();
 		}
 
 
@@ -1455,15 +1465,21 @@ namespace AC
 			public readonly string componentName;
 			public readonly Texture2D icon;
 			public readonly GameObject prefab;
+			public readonly System.Action onCreateBefore;
+			public readonly System.Action<GameObject> onCreateAfter;
+			public readonly bool autoCreate;
 
 
-			public ScenePrefab (string _label, string _prefabPath, string _sceneFolder, string _helpText, string _componentName, string _graphicName = "")
+			public ScenePrefab (string _label, string _prefabPath, string _sceneFolder, string _helpText, string _componentName, string _graphicName = "", System.Action _onCreateBefore = null, System.Action<GameObject> _onCreateAfter = null, bool _autoCreate = true)
 			{
 				label = _label;
 				prefabPath = _prefabPath;
 				sceneFolder = _sceneFolder;
 				helpText = _helpText;
 				componentName = _componentName;
+				onCreateBefore = _onCreateBefore;
+				onCreateAfter = _onCreateAfter;
+				autoCreate = _autoCreate;
 				
 				if (!string.IsNullOrEmpty (_graphicName))
 				{

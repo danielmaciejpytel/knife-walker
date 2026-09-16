@@ -36,6 +36,10 @@ namespace AC
 		public bool doEulerRotation = false;
 		public bool clearExisting = true;
 		public bool inWorldSpace = false;
+
+		public bool copyMarkerPosition = true;
+		public bool copyMarkerRotation = true;
+		public bool copyMarkerScale = true;
 		
 		public AnimationCurve timeCurve = new AnimationCurve (new Keyframe(0, 0), new Keyframe(1, 1));
 		
@@ -206,7 +210,7 @@ namespace AC
 			{
 				if (runtimeMarker)
 				{
-					runtimeLinkedProp.Move (runtimeMarker, moveMethod, inWorldSpace, _time, timeCurve);
+					runtimeLinkedProp.Move (runtimeMarker, moveMethod, inWorldSpace, _time, timeCurve, copyMarkerPosition, copyMarkerRotation, copyMarkerScale);
 				}
 			}
 			else
@@ -252,16 +256,23 @@ namespace AC
 						if (Mathf.Approximately (targetVector.y, 0f)) numZeros ++;
 						if (Mathf.Approximately (targetVector.z, 0f)) numZeros ++;
 
-						if (numZeros == 2)
+						if (numZeros == 3)
 						{
 							targetVector = SetRelativeTarget (targetVector, isSkipping, runtimeLinkedProp.transform.eulerAngles);
 						}
 						else
 						{
-							Quaternion currentRotation = runtimeLinkedProp.transform.localRotation;
-							runtimeLinkedProp.transform.Rotate (targetVector, Space.World);
-							targetVector = runtimeLinkedProp.transform.localEulerAngles;
-							runtimeLinkedProp.transform.localRotation = currentRotation;
+							if (doEulerRotation)
+							{
+								targetVector += runtimeLinkedProp.transform.localEulerAngles;
+							}
+							else
+							{
+								Quaternion currentRotation = runtimeLinkedProp.transform.localRotation;
+								runtimeLinkedProp.transform.Rotate (targetVector, Space.World);
+								targetVector = runtimeLinkedProp.transform.localEulerAngles;
+								runtimeLinkedProp.transform.localRotation = currentRotation;
+							}
 						}
 
 						speedScaler = targetVector.magnitude;
@@ -346,6 +357,9 @@ namespace AC
 			if (transformType == TransformType.CopyMarker)
 			{
 				ComponentField ("Marker:", ref marker, ref markerID, parameters, ref markerParameterID);
+				copyMarkerPosition = EditorGUILayout.Toggle ("Copy position?", copyMarkerPosition);
+				copyMarkerRotation = EditorGUILayout.Toggle ("Copy rotation?", copyMarkerRotation);
+				copyMarkerScale = EditorGUILayout.Toggle ("Copy scale?", copyMarkerScale);
 			}
 			else
 			{
@@ -558,6 +572,7 @@ namespace AC
 			return newAction;
 		}
 
+
 		public static ActionTransform CreateNew_RotateBy (Moveable objectToMove, Vector3 eulerAngles, float transitionTime = 1f, MoveMethod moveMethod = MoveMethod.Smooth, AnimationCurve timeCurve = null, bool waitUntilFinish = false)
 		{
 			ActionTransform newAction = CreateNew<ActionTransform> ();
@@ -589,6 +604,7 @@ namespace AC
 			newAction.willWait = waitUntilFinish;
 			return newAction;
 		}
+
 
 		public static ActionTransform CreateNew_ScaleBy (Moveable objectToMove, Vector3 scaleVector, float transitionTime = 1f, MoveMethod moveMethod = MoveMethod.Smooth, AnimationCurve timeCurve = null, bool waitUntilFinish = false)
 		{

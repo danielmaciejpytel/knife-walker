@@ -270,6 +270,25 @@ namespace AC
 
 
 		/**
+		 * <summary>Sets the currently-active Hotspot. The Hotspot must already be included in the component's internal record of detected Hotspot</summary>
+		 * <param name = "_hotspot">The Hotspot to make active</param>
+		 */
+		public void SetSelected (Hotspot _hotspot)
+		{
+			if (_hotspot == null || hotspots == null) return;
+
+			for (int i = 0; i < hotspots.Count; i++)
+			{
+				if (hotspots[i] == _hotspot)
+				{
+					selected = i;
+					break;
+				}
+			}
+		}
+
+
+		/**
 		 * <summary>Removes a Hotspot from the script's internal record of detected Hotspots.</summary>
 		 * <param name = "_hotspot">The Hotspot to forget</param>
 		 */

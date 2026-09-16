@@ -80,7 +80,7 @@ namespace AC
 
 		public override ActionCategory Category { get { return ActionCategory.Variable; }}
 		public override string Title { get { return "Set"; }}
-		public override string Description { get { return "Sets the value of both Global and Local Variables, as declared in the Variables Manager. Integers can be set to absolute, incremented or assigned a random value. Strings can also be set to the value of a MenuInput element, while Integers, Booleans and Floats can also be set to the value of a Mecanim parameter. When setting Integers and Floats, you can also opt to type in a forumla (e.g. 2 + 3 *4), which can also include tokens of the form [var:ID] to denote the value of a Variable, where ID is the unique number given to a Variable in the Variables Manager."; }}
+		public override string Description { get { return "Sets the value of both Global and Local Variables, as declared in the Variables Manager. Integers can be set to absolute, incremented or assigned a random value. Strings can also be set to the value of a MenuInput element, while Integers, Booleans and Floats can also be set to the value of a Mecanim parameter. When setting Integers and Floats, you can also opt to type in a formula (e.g. 2 + 3 *4), which can also include tokens of the form [var:ID] to denote the value of a Variable, where ID is the unique number given to a Variable in the Variables Manager."; }}
 
 
 		public override void AssignValues (List<ActionParameter> parameters)
@@ -233,7 +233,7 @@ namespace AC
 						{
 							if (setVarMethod == SetVarMethod.Formula)
 							{
-								_value = (float) AdvGame.CalculateFormula (AdvGame.ConvertTokens (formula, Options.GetLanguage (), localVariables));
+								_value = (float) AdvGame.CalculateFormula (AdvGame.ConvertTokens (runtimeFormula, Options.GetLanguage (), localVariables));
 							}
 							else
 							{
@@ -339,7 +339,7 @@ namespace AC
 						}
 						else if (setVarMethod == SetVarMethod.SetAsRandom)
 						{
-							_value = Random.Range (0, var.GetNumPopUpValues ());
+							_value = var.GetNumPopUpValues ();
 						}
 						else
 						{
@@ -800,7 +800,11 @@ namespace AC
 					break;
 
 				case VariableType.GameObject:
-					GameObjectField (label, ref gameObjectValue, location != VariableLocation.Global, parameters, ref setParameterID);
+					GameObjectField (label, ref gameObjectValue, true, parameters, ref setParameterID);
+					if (location == VariableLocation.Global && gameObjectValue && setParameterID < 0 && gameObjectValue.activeInHierarchy)
+					{
+						EditorGUILayout.HelpBox ("The Variable's value will not be stored in save-game data, as it references a scene object", MessageType.Warning);
+					}
 					break;
 
 				case VariableType.UnityObject:

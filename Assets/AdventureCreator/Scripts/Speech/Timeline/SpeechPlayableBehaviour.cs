@@ -34,7 +34,11 @@ namespace AC
 		protected bool isPlayerLine;
 		protected int playerID;
 		protected bool isPlaying;
-		protected int trackInstanceID;
+#if UNITY_6000_5_OR_NEWER
+		protected EntityId trackID;
+#else
+		protected int trackID;
+#endif
 		private Speech speech;
 
 		#if AddressableIsPresent
@@ -47,14 +51,18 @@ namespace AC
 
 		#region PublicFunctions
 
-		public void Init (SpeechPlayableData _speechPlayableData, Char _speaker, bool _isPlayerLine, int _playerID, SpeechTrackPlaybackMode _speechTrackPlaybackMode, int _trackInstanceID)
+#if UNITY_6000_5_OR_NEWER
+		public void Init (SpeechPlayableData _speechPlayableData, Char _speaker, bool _isPlayerLine, int _playerID, SpeechTrackPlaybackMode _speechTrackPlaybackMode, EntityId _trackID)
+#else
+		public void Init (SpeechPlayableData _speechPlayableData, Char _speaker, bool _isPlayerLine, int _playerID, SpeechTrackPlaybackMode _speechTrackPlaybackMode, int _trackID)
+#endif
 		{
 			speechPlayableData = _speechPlayableData;
 			speaker = _speaker;
 			isPlayerLine = _isPlayerLine;
 			playerID = _playerID;
 			speechTrackPlaybackMode = _speechTrackPlaybackMode;
-			trackInstanceID = _trackInstanceID;
+			trackID = _trackID;
 
 			#if AddressableIsPresent
 			PrepareAddressable ();
@@ -103,12 +111,12 @@ namespace AC
 				else if (KickStarter.menuPreview)
 				{
 					Speech previewSpeech = new Speech (speaker, speechPlayableData.messageText);
-					KickStarter.menuPreview.SetPreviewSpeech (previewSpeech, trackInstanceID);
+					KickStarter.menuPreview.SetPreviewSpeech (previewSpeech, trackID);
 				}
 				#else
 				else
 				{
-					ACDebug.Log ("Playing speech line with track ID: " + trackInstanceID);
+					ACDebug.Log ("Playing speech line with track ID: " + trackID);
 				}
 				#endif
 			}

@@ -153,6 +153,7 @@ namespace AC
 				for (int i=0; i<uiSlots.Length; i++)
 				{
 					uiSlots[i] = new UISlot (_element.uiSlots[i]);
+					uiSlots[i].uiButton = null;
 				}
 			}
 
@@ -379,6 +380,7 @@ namespace AC
 				}
 			}
 				
+			ChangeCursorGUI (menu);
 			CustomGUILayout.EndVertical ();
 			
 			base.ShowGUI (menu, showALAEditor);
@@ -582,7 +584,7 @@ namespace AC
 		{
 			for (int i = 0; i < uiSlots.Length; i++)
 			{
-				if (uiSlots[i].uiButton && uiSlots[i].uiButton == gameObject)
+				if (uiSlots[i].uiButton && uiSlots[i].uiButton.gameObject == gameObject)
 				{
 					return i;
 				}
@@ -863,15 +865,18 @@ namespace AC
 
 						if (newSaveSlot && !fixedOption && _slot == (numSlots - 1))
 						{
-							SaveSystem.SaveNewGame ();
+							SaveSystem.SaveNewGame (true, string.Empty, OnCompleteSave);
 
-							if (KickStarter.settingsManager.orderSavesByUpdateTime)
+							void OnCompleteSave ()
 							{
-								offset = 0;
-							}
-							else
-							{
-								Shift (AC_ShiftInventory.ShiftNext, 1);
+								if (KickStarter.settingsManager.orderSavesByUpdateTime)
+								{
+									offset = 0;
+								}
+								else
+								{
+									Shift (AC_ShiftInventory.ShiftNext, 1);
+								}
 							}
 						}
 						else
@@ -996,11 +1001,22 @@ namespace AC
 				{
 					if (checkImportBool)
 					{
-						KickStarter.saveSystem.GatherImportFiles (importProductName, importSaveFilename, checkImportVar);
+						KickStarter.saveSystem.GatherImportFiles (importProductName, importSaveFilename, checkImportVar, OnGatherImportFiles);
 					}
 					else
 					{
-						KickStarter.saveSystem.GatherImportFiles (importProductName, importSaveFilename, -1);
+						KickStarter.saveSystem.GatherImportFiles (importProductName, importSaveFilename, -1, OnGatherImportFiles);
+					}
+
+					void OnGatherImportFiles (List<SaveFile> importFiles)
+					{
+						numSlots = SaveSystem.GetNumImportSlots ();
+						if (numSlots > maxSlots)
+						{
+							numSlots = maxSlots;
+						}
+
+						offset = Mathf.Min (offset, GetMaxOffset ());
 					}
 				}
 
@@ -1151,6 +1167,10 @@ namespace AC
 
 		private int GetNumFilledSlots ()
 		{
+			if (saveListType == AC_SaveListType.Import)
+			{
+				return KickStarter.saveSystem.FoundImportFiles.Count;
+			}
 			if (!fixedOption && allowEmptySlots)
 			{
 				return KickStarter.settingsManager.maxSaves;

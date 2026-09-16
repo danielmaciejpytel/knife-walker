@@ -1,7 +1,7 @@
 /*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2025
  *	
  *	"Conversation.cs"
  * 
@@ -36,7 +36,7 @@ namespace AC
 		public ButtonDialog selectedOption;
 
 		/** The index number of the last-chosen Conversation dialogue option */
-		public int lastOption = -1;
+		[System.NonSerialized] public int lastOption = -1;
 
 		/** If True, and only one option is available, then the option will be chosen automatically */
 		public bool autoPlay = false;
@@ -48,17 +48,28 @@ namespace AC
 		public int defaultOption = 0;
 
 		protected float startTime;
-		protected ActiveList overrideActiveList;
 		protected ActiveList onFinishActiveList;
 		protected MenuDialogList linkedDialogList;
+		protected Coroutine delayCoroutine;
+		protected bool isOverride;
+		private bool recordedDefaultStates;
 
 		#endregion
 
 
 		#region UnityStandards
 
-		private void OnEnable ()
+		private void OnEnable()
 		{
+			if (!recordedDefaultStates)
+			{
+				foreach (var option in options)
+				{
+					option.RecordStartingState();
+				}
+				recordedDefaultStates = true;
+			}
+
 			EventManager.OnEndActionList += OnEndActionList;
 			EventManager.OnEndConversation += OnEndConversation;
 			EventManager.OnFinishLoading += OnFinishLoading;
@@ -72,7 +83,8 @@ namespace AC
 			EventManager.OnFinishLoading -= OnFinishLoading;
 		}
 
-		private void Start ()
+
+		private void Start()
 		{
 			if (KickStarter.inventoryManager)
 			{
@@ -80,10 +92,10 @@ namespace AC
 				{
 					if (option.linkToInventory && option.cursorIcon.texture == null)
 					{
-						InvItem linkedItem = KickStarter.inventoryManager.GetItem (option.linkedInventoryID);
+						InvItem linkedItem = KickStarter.inventoryManager.GetItem(option.linkedInventoryID);
 						if (linkedItem != null && linkedItem.tex != null)
 						{
-							option.cursorIcon.ReplaceTexture (linkedItem.tex);
+							option.cursorIcon.ReplaceTexture(linkedItem.tex);
 						}
 					}
 				}
@@ -95,10 +107,23 @@ namespace AC
 
 		#region PublicFunctions
 
-		/** Show the Conversation's dialogue options. */
-		public void Interact ()
+		/** Restores the options to their starting/default states */
+		public void RestoreStartingState()
 		{
-			Interact (null, null);
+			if (!recordedDefaultStates) return;
+
+			foreach (var option in options)
+			{
+				option.RestoreStartingState();
+				KickStarter.playerMenus.RefreshDialogueOptions();
+			}
+		}
+
+
+		/** Show the Conversation's dialogue options. */
+		public void Interact()
+		{
+			Interact(null, null);
 		}
 
 
@@ -109,7 +134,7 @@ namespace AC
 		 */
 		public void Interact (ActionList actionList, ActionConversation actionConversation)
 		{
-			overrideActiveList = null;
+			isOverride = false;
 			
 			if (actionList)
 			{
@@ -120,8 +145,29 @@ namespace AC
 				{
 					if (actionConversation.overrideOptions)
 					{
-						overrideActiveList = new ActiveList (actionList, true, actionIndex);
-						actionList.ResetList ();
+						bool foundInAsset = false;
+						foreach (var activeList in KickStarter.actionListAssetManager.ActiveLists)
+						{
+							if (activeList.actionList == actionList)
+							{
+								KickStarter.actionListManager.currentConversationActiveList = new ActionListManager.NestedAwaitingActiveList(activeList, this, actionList, actionConversation);
+								foundInAsset = true;
+								break;
+							}
+						}
+
+						if (!foundInAsset)
+						{
+							foreach (var activeList in KickStarter.actionListManager.ActiveLists)
+							{
+								if (activeList.actionList == actionList)
+								{
+									KickStarter.actionListManager.currentConversationActiveList = new ActionListManager.NestedAwaitingActiveList(activeList, this, actionList, actionConversation);
+								}
+							}
+						}
+
+						isOverride = true;
 					}
 					else if (actionConversation.willWait && !KickStarter.settingsManager.allowGameplayDuringConversations && actionConversation.endings.Count > 0)
 					{
@@ -174,28 +220,28 @@ namespace AC
 					numPresent ++;
 				}
 			}
-			
+
 			if (numPresent == 1 && autoPlay)
 			{
 				foreach (ButtonDialog _option in options)
 				{
-					if (_option.CanShow ())
+					if (_option.CanShow())
 					{
-						KickStarter.eventManager.Call_OnStartConversation (this);
-						RunOption (_option);
+						KickStarter.eventManager.Call_OnStartConversation(this);
+						RunOption(_option);
 						return;
 					}
 				}
 			}
 			else if (numPresent > 0)
 			{
-				KickStarter.eventManager.Call_OnStartConversation (this);
+				KickStarter.eventManager.Call_OnStartConversation(this);
 				KickStarter.playerInput.activeConversation = this;
 			}
 			else
 			{
-				KickStarter.playerInput.EndConversation ();
-				OnEndConversation (this);
+				KickStarter.playerInput.EndConversation();
+				OnEndConversation(this);
 				return;
 			}
 			
@@ -278,18 +324,19 @@ namespace AC
 			CancelInvoke ("RunDefault");
 			
 			ButtonDialog buttonDialog = options[i];
-			if (interactionSource == InteractionSource.CustomScript)
+			if (interactionSource == InteractionSource.CustomScript || KickStarter.dialog.conversationDelay <= 0f)
 			{
 				RunOption (buttonDialog);
 			}
 			else
 			{
-				KickStarter.playerInput.StartCoroutine (KickStarter.playerInput.DelayConversation (this, () => RunOption (buttonDialog)));
+				if (delayCoroutine == null)
+					delayCoroutine = StartCoroutine (KickStarter.playerInput.DelayConversation (this, () => RunOption (buttonDialog)));
 			}
 
 			KickStarter.playerInput.activeConversation = null;
 
-			if (overrideActiveList != null)
+			if (isOverride)
 			{
 				KickStarter.eventManager.Call_OnEndConversation (this);
 			}
@@ -316,12 +363,13 @@ namespace AC
 			}
 			else
 			{
-				KickStarter.playerInput.StartCoroutine (KickStarter.playerInput.DelayConversation (this, () => RunOption (buttonDialog)));
+				if (delayCoroutine == null)
+					delayCoroutine = StartCoroutine (KickStarter.playerInput.DelayConversation (this, () => RunOption (buttonDialog)));
 			}
 
 			KickStarter.playerInput.activeConversation = null;
 
-			if (overrideActiveList != null)
+			if (isOverride)
 			{
 				KickStarter.eventManager.Call_OnEndConversation (this);
 			}
@@ -334,7 +382,7 @@ namespace AC
 		 */
 		public float GetTimeRemaining ()
 		{
-			return ((startTime + timer - Time.time) / timer);
+			return (startTime + timer - Time.time) / timer;
 		}
 
 
@@ -713,14 +761,7 @@ namespace AC
 		/** Checks if the Converations options are currently being overridden by an ActionList */
 		public bool HasActionListOverride ()
 		{
-			return (overrideActiveList != null);
-		}
-
-		
-		/** Checks if the Converations options are currently being overridden by a specific ActionList */
-		public bool IsOverridingActionList (ActionList actionList)
-		{
-			return overrideActiveList != null && overrideActiveList.actionList == actionList;
+			return isOverride;
 		}
 
 		#endregion
@@ -730,6 +771,8 @@ namespace AC
 
 		protected void RunOption (ButtonDialog _option)
 		{
+			delayCoroutine = null;
+			
 			if (_option.autoTurnOff)
 			{
 				_option.isOn = false;
@@ -739,24 +782,11 @@ namespace AC
 			if (options.Contains (_option))
 			{
 				lastOption = options.IndexOf (_option);
-
-				if (overrideActiveList != null)
+				if (isOverride)
 				{
-					KickStarter.eventManager.Call_OnClickConversation (this, _option.ID);
-					ActiveList _activeList = overrideActiveList;
-					overrideActiveList = null;
-					if (_activeList.actionListAsset)
-					{
-						_activeList.actionList = AdvGame.RunActionListAsset (_activeList.actionListAsset, _activeList.startIndex, true);
-					}
-					else if (_activeList.actionList)
-					{
-						_activeList.actionList.Interact (_activeList.startIndex, true);
-					}
-
 					return;
 				}
-				lastOption = -1;
+				//lastOption = -1;
 			}
 
 			
@@ -840,7 +870,7 @@ namespace AC
 
 		protected void OnEndActionList (ActionList actionList, ActionListAsset actionListAsset, bool isSkipping)
 		{
-			if (overrideActiveList == null)
+			if (!isOverride)
 			{
 				foreach (ButtonDialog buttonDialog in options)
 				{
@@ -898,7 +928,7 @@ namespace AC
 		protected void OnFinishLoading (int saveID)
 		{
 			onFinishActiveList = null;
-			overrideActiveList = null;
+			isOverride = false;
 		}
 
 		#endregion

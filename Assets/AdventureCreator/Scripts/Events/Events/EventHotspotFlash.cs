@@ -1,6 +1,7 @@
 ﻿namespace AC
 {
 
+	[System.Serializable]
 	public class EventHotspotFlash : EventBase
 	{
 

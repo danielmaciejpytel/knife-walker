@@ -1,6 +1,6 @@
 ﻿/*
  *
- *	Adventure Creator
+ *    Adventure Creator
  *	by Chris Burton, 2013-2024
  *	
  *	"AutoCorrectUIDimensions.cs"
@@ -18,7 +18,7 @@ namespace AC
 
 	/** This script can re-position and re-scale a Unity UI-based Menu if the playable area is not the same as the game screen. This can be the case if an aspect ratio is enforced, or if running on a mobile device with notched features. */
 	[AddComponentMenu ("Adventure Creator/UI/Auto-correct UI Dimensions")]
-	[HelpURL ("https://www.adventurecreator.org/scripting-guide/class_a_c_1_1_auto_correct_ui_dimensions.html")]
+	[HelpURL ("https://www.adventurecreator.org/scripting-guide/class_a_c_1_1_auto_correct_u_i_dimensions.html")]
 	public class AutoCorrectUIDimensions : MonoBehaviour
 	{
 
@@ -34,8 +34,10 @@ namespace AC
 
 		public bool updatePosition = true;
 		public bool updateScale = true;
+		public bool accountForSafeArea = false;
 
 		protected Vector2 originalReferenceResolution;
+		protected bool hasInitialised;
 
 		#endregion
 
@@ -45,11 +47,13 @@ namespace AC
 		protected void Start ()
 		{
 			Initialise ();
+			OnUpdatePlayableScreenArea ();
 		}
 
 
 		protected void OnEnable ()
 		{
+			Initialise ();
 			EventManager.OnUpdatePlayableScreenArea += OnUpdatePlayableScreenArea;
 			StartCoroutine (UpdateInOneFrame ());
 		}
@@ -63,10 +67,22 @@ namespace AC
 		#endregion
 
 
+		#region PublicFunctions
+		
+		public void ForceUpdate()
+		{
+			OnUpdatePlayableScreenArea();
+		}
+		
+		#endregion
+		
+
 		#region ProtectedFunctions
 
 		protected void Initialise ()
 		{
+			if (hasInitialised) return;
+
 			canvasScaler = GetComponent<CanvasScaler> ();
 			if (canvasScaler)
 			{
@@ -77,6 +93,8 @@ namespace AC
 			{
 				ACDebug.LogWarning ("The Auto Correct UI Dimensions component on " + gameObject.name + " must be attached to a GameObject with a CanvasScaler component - be sure to attach it to the root Canvas object.", this);
 			}
+			
+			hasInitialised = true;
 		}
 
 
@@ -120,12 +138,36 @@ namespace AC
 				Vector2 safeSize = KickStarter.mainCamera.GetPlayableScreenArea (true).size;
 				canvasScaler.referenceResolution = new Vector2 (originalReferenceResolution.x / safeSize.x, originalReferenceResolution.y / safeSize.y);
 			}
+			
+			Canvas.ForceUpdateCanvases ();
 		}
 
 
 		protected Vector2 ConvertToPlayableSpace (Vector2 screenPosition)
 		{
 			Rect playableScreenArea = KickStarter.mainCamera.GetPlayableScreenArea (true);
+			
+			if (accountForSafeArea)
+			{
+				Rect safeArea = Screen.safeArea;
+				
+				var safePlayableScreenArea = new Rect
+				(
+					safeArea.x / ACScreen.width,
+					safeArea.y / ACScreen.height,
+					safeArea.width / ACScreen.width,
+					safeArea.height / ACScreen.height
+				);
+				
+				playableScreenArea = Rect.MinMaxRect
+				(
+					Mathf.Max (playableScreenArea.x, safePlayableScreenArea.x),
+					Mathf.Max (playableScreenArea.y, safePlayableScreenArea.y),
+					Mathf.Min (playableScreenArea.xMax, safePlayableScreenArea.xMax),
+					Mathf.Min (playableScreenArea.yMax, safePlayableScreenArea.yMax)
+				);
+			}
+			
 			return new Vector2 (screenPosition.x * playableScreenArea.width, screenPosition.y * playableScreenArea.height) + playableScreenArea.position;
 		}
 

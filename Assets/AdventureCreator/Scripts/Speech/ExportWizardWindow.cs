@@ -23,6 +23,7 @@ namespace AC
 		private string[] sceneNames;
 
 		private Vector2 scroll;
+		private bool alwaysAddQuotes;
 
 
 		private void _Init (SpeechManager _speechManager, string[] _sceneNames, int forLanguage)
@@ -97,6 +98,7 @@ namespace AC
 			{
 				GUI.enabled = false;
 			}
+			alwaysAddQuotes = EditorGUILayout.Toggle ("Always add CSV quotes?", alwaysAddQuotes);
 			EditorGUILayout.BeginHorizontal ();
 			if (GUILayout.Button ("Export CSV", GUILayout.Width (position.width / 2f - 5)))
 			{
@@ -487,7 +489,7 @@ namespace AC
 			{
 				case ExportFormat.CSV:
 				default:
-					fileContents = CSVReader.CreateCSVGrid (output);
+					fileContents = CSVReader.CreateCSVGrid (output, alwaysAddQuotes);
 					break;
 
 				case ExportFormat.XML:

@@ -1,7 +1,7 @@
 /*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2025
  *	
  *	"Action.cs"
  * 
@@ -11,8 +11,8 @@
  * 
  */
 
-using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -256,22 +256,40 @@ namespace AC
 		 * <summary>Update the Action's output sockets</summary>
 		 * <param name = "actionEnds">A data container for the output sockets</param>
 		 */
-		public void SetOutputs (ActionEnd[] actionEnds)
+		public void SetOutputs(ActionEnd[] actionEnds)
 		{
 			endings = new List<ActionEnd>();
 			foreach (ActionEnd actionEnd in actionEnds)
 			{
-				endings.Add (new ActionEnd (actionEnd));
+				endings.Add(new ActionEnd(actionEnd));
 			}
 
 			if (endings.Count > NumSockets)
 			{
-				LogWarning ("Ending mismatch - setting " + actionEnds.Length + " outputs for Action, but only " + NumSockets + " are supported");
+				LogWarning("Ending mismatch - setting " + actionEnds.Length + " outputs for Action, but only " + NumSockets + " are supported");
 			}
 		}
 
 
 		#if UNITY_EDITOR
+		
+		protected T WithoutSelectAll<T>(System.Func<T> guiCall)
+		{
+			bool preventSelection = (Event.current.type == EventType.MouseDown);
+
+			Color oldCursorColor = GUI.skin.settings.cursorColor;
+
+			if (preventSelection)
+				GUI.skin.settings.cursorColor = new Color(0, 0, 0, 0);
+
+			T value = guiCall();
+
+			if (preventSelection)
+				GUI.skin.settings.cursorColor = oldCursorColor;
+
+			return value;
+		}
+
 
 		public void ResetSearchData ()
 		{
@@ -294,7 +312,7 @@ namespace AC
 
 		protected string TextArea (string text)
 		{
-			text = EditorGUILayout.TextArea (text, GUILayout.MaxWidth (400f));
+			text = WithoutSelectAll(() => EditorGUILayout.TextArea (text, GUILayout.MaxWidth (400f)));
 			AddSearchTerm (text);
 			return text;
 		}
@@ -302,7 +320,7 @@ namespace AC
 
 		protected string TextField (string label, string text)
 		{
-			text = EditorGUILayout.TextField (label, text);
+			text = WithoutSelectAll(() => EditorGUILayout.TextField (label, text));
 			AddSearchTerm (text);
 			return text;
 		}
@@ -310,7 +328,7 @@ namespace AC
 
 		protected string DelayedTextField (string label, string text)
 		{
-			text = EditorGUILayout.DelayedTextField (label, text);
+			text = WithoutSelectAll(() => EditorGUILayout.DelayedTextField (label, text));
 			AddSearchTerm (text);
 			return text;
 		}
@@ -643,12 +661,14 @@ namespace AC
 
 		public void IntField (string label, ref int value, List<ActionParameter> _parameters, ref int _parameterID, string parameterLabel = "")
 		{
-			ActionParameter[] filteredParameters = GetFilteredParameters (_parameters, ParameterType.Integer);
+			ActionParameter[] filteredParameters = GetFilteredParameters (_parameters, new ParameterType[] { ParameterType.Integer, ParameterType.InventoryItem, ParameterType.Document, ParameterType.Objective });
 			
 			bool parameterOverride = SmartFieldStart (label, filteredParameters, ref _parameterID, parameterLabel);
 			if (!parameterOverride)
 			{
-				value = EditorGUILayout.IntField (label, value);
+				var val = value;
+				val = WithoutSelectAll (() => EditorGUILayout.IntField (label, val));
+				value = val;
 			}
 
 			SmartFieldEnd (filteredParameters, parameterOverride, ref _parameterID);
@@ -657,12 +677,14 @@ namespace AC
 
 		public void FloatField (string label, ref float value, List<ActionParameter> _parameters, ref int _parameterID, string parameterLabel = "")
 		{
-			ActionParameter[] filteredParameters = GetFilteredParameters (_parameters, ParameterType.Float);
+			ActionParameter[] filteredParameters = GetFilteredParameters (_parameters, new ParameterType [] { ParameterType.Float, ParameterType.Integer });
 			
 			bool parameterOverride = SmartFieldStart (label, filteredParameters, ref _parameterID, parameterLabel);
 			if (!parameterOverride)
 			{
-				value = EditorGUILayout.FloatField (label, value);
+				var val = value;
+				val = WithoutSelectAll (() => EditorGUILayout.FloatField (label, val));
+				value = val;
 			}
 
 			SmartFieldEnd (filteredParameters, parameterOverride, ref _parameterID);
@@ -676,7 +698,9 @@ namespace AC
 			bool parameterOverride = SmartFieldStart (label, filteredParameters, ref _parameterID, parameterLabel);
 			if (!parameterOverride)
 			{
-				value = EditorGUILayout.TextField (label, value);
+				var val = value;
+				val = WithoutSelectAll (() => EditorGUILayout.TextField (label, val));
+				value = val;
 			}
 
 			SmartFieldEnd (filteredParameters, parameterOverride, ref _parameterID);
@@ -756,7 +780,7 @@ namespace AC
 			if (!parameterOverride)
 			{
 				BoolValue boolValue = (value <= 0f) ? BoolValue.False : BoolValue.True;
-				boolValue = (BoolValue) EditorGUILayout.EnumPopup ("Value:", boolValue);
+				boolValue = (BoolValue) EditorGUILayout.EnumPopup (label, boolValue);
 				value = (boolValue == BoolValue.True) ? 1 : 0;
 			}
 
@@ -772,7 +796,7 @@ namespace AC
 			if (!parameterOverride)
 			{
 				BoolValue boolValue = (value <= 0f) ? BoolValue.False : BoolValue.True;
-				boolValue = (BoolValue) EditorGUILayout.EnumPopup ("Value:", boolValue);
+				boolValue = (BoolValue) EditorGUILayout.EnumPopup (label, boolValue);
 				value = (boolValue == BoolValue.True) ? 1f : 0f;
 			}
 
@@ -787,7 +811,7 @@ namespace AC
 			bool parameterOverride = SmartFieldStart (label, filteredParameters, ref _parameterID, parameterLabel);
 			if (!parameterOverride)
 			{
-				value = (BoolValue) EditorGUILayout.EnumPopup ("Value:", value);
+				value = (BoolValue) EditorGUILayout.EnumPopup (label, value);
 			}
 
 			SmartFieldEnd (filteredParameters, parameterOverride, ref _parameterID);
@@ -1647,7 +1671,7 @@ namespace AC
 		}
 
 
-		protected int ChoosePlayerGUI (int _playerID, bool includeActiveOption = false, string label = "Player:")
+		public static int ChoosePlayerGUI (int _playerID, bool includeActiveOption = false, string label = "Player:")
 		{
 			SettingsManager settingsManager = KickStarter.settingsManager;
 			if (settingsManager == null || settingsManager.playerSwitching == PlayerSwitching.DoNotAllow) return _playerID;
@@ -1688,7 +1712,7 @@ namespace AC
 				if ((includeActiveOption && playerNumber == 0) || (!includeActiveOption && playerNumber == -1))
 				{
 					// Wasn't found (item was possibly deleted), so revert to zero
-					LogWarning ("Previously chosen Player no longer exists!");
+					Debug.LogWarning ("Previously chosen Player no longer exists!");
 
 					playerNumber = 0;
 				}
@@ -1939,17 +1963,9 @@ namespace AC
 		public int AssignInteger (List<ActionParameter> parameters, int _parameterID, int field)
 		{
 			ActionParameter parameter = GetParameterWithID (parameters, _parameterID);
-			if (parameter != null)
+			if (parameter != null && parameter.IsIntegerBased ())
 			{
-				switch (parameter.parameterType)
-				{
-					case ParameterType.Integer:
-					case ParameterType.PopUp:
-						return (parameter.intValue);
-
-					default:
-						break;
-				}
+				return parameter.intValue;
 			}
 			return field;
 		}
@@ -1968,6 +1984,10 @@ namespace AC
 			if (parameter != null && parameter.parameterType == ParameterType.Float)
 			{
 				return (parameter.floatValue);
+			}
+			if (parameter != null && parameter.parameterType == ParameterType.Integer)
+			{
+				return (float) (parameter.intValue);
 			}
 			return field;
 		}

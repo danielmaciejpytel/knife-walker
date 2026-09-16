@@ -26,7 +26,7 @@ namespace AC
 		#region Variables
 
 		/** A List of all active Speech lines */
-		public List<Speech> speechList = new List<Speech>();
+		public readonly List<Speech> speechList = new List<Speech>();
 		/** The Sound prefab to use to play narration speech audio from */
 		public Sound narratorSound;
 		/** The delay in seconds between choosing a Conversation's dialogue option and it triggering */
@@ -60,6 +60,7 @@ namespace AC
 		{
 			EventManager.OnManuallyTurnACOff += OnInitialiseScene;
 			EventManager.OnChangeVolume += OnChangeVolume;
+			EventManager.OnBeforeLoading += OnBeforeLoading;
 		}
 
 
@@ -67,6 +68,7 @@ namespace AC
 		{
 			EventManager.OnManuallyTurnACOff -= OnInitialiseScene;
 			EventManager.OnChangeVolume -= OnChangeVolume;
+			EventManager.OnBeforeLoading -= OnBeforeLoading;
 		}
 
 
@@ -871,6 +873,12 @@ namespace AC
 				}
 			}
 		}
+		
+		
+		protected void OnBeforeLoading(SaveFile saveFile)
+		{
+			KillDialog (true, true);
+		}
 
 
 		protected void EndBackgroundSpeechAudio (Speech speech)
@@ -889,7 +897,7 @@ namespace AC
 		{
 			Speech oldSpeech = speechList[i];
 			
-			KickStarter.playerMenus.RemoveSpeechFromMenu (oldSpeech);
+			//KickStarter.playerMenus.RemoveSpeechFromMenu (oldSpeech);
 			if (stopCharacter)
 			{
 				if (oldSpeech.GetSpeakingCharacter ())

@@ -120,6 +120,7 @@ namespace AC
 		
 		private Rect overlayRect;
 		private float overlayDepthBackup;
+		private bool overlayMainUnder;
 		
 		// Custom FX
 		protected float focalDistance = 10f;
@@ -352,7 +353,7 @@ namespace AC
 		{
 			if (SetAspectRatio ())
 			{
-				CreateBorderCamera ();
+				//CreateBorderCamera ();
 			}
 			CalculatePlayableScreenArea ();
 			SetCameraRect ();
@@ -565,6 +566,11 @@ namespace AC
 		/** The texture to display full-screen for the fade effect */
 		public Texture2D GetFadeTexture ()
 		{
+			if (isCrossfading)
+			{
+				return crossfadeTexture;
+			}
+			
 			if (timelineFadeOverride)
 			{
 				return timelineFadeTexture;
@@ -983,14 +989,14 @@ namespace AC
 		}
 
 
-		/**
-		 * Updates the camera's rect values according to the aspect ratio and split-screen settings.
-		 */
+		/** Updates the camera's rect values according to the aspect ratio and split-screen settings. */
 		public void SetCameraRect ()
 		{
+			#if UNITY_EDITOR
 			if (!Application.isPlaying) return;
+			#endif
 
-			if (SetAspectRatio () && Application.isPlaying)
+			if (SetAspectRatio ())
 			{
 				CreateBorderCamera ();
 			}
@@ -1320,8 +1326,9 @@ namespace AC
 		 * <param name = "underlayCamera">The full-screen camera to go underneath the overlay</param>
 		 * <param name = "overlayCamera">The camera to overlay</param>
 		 * <param name = "_overlayRect">A Rect that describes the position and size of the overlay effect</param>
+		 * <param name = "mainIsUnderlay">If True, the MainCamera will attach itself to the underlay camera, not the overlay</param>
 		 */
-		public void SetBoxOverlay (_Camera underlayCamera, _Camera overlayCamera, Rect _overlayRect, bool useRectCentre = true)
+		public void SetBoxOverlay (_Camera underlayCamera, _Camera overlayCamera, Rect _overlayRect, bool useRectCentre = true, bool mainIsUnderlay = false)
 		{
 			if (underlayCamera == null)
 			{
@@ -1335,15 +1342,25 @@ namespace AC
 				return;
 			}
 
-			splitCamera = underlayCamera;
+			overlayMainUnder = mainIsUnderlay;
+			splitCamera = mainIsUnderlay ? overlayCamera : underlayCamera;
 			isSplitScreen = true;
 			splitOrientation = CameraSplitOrientation.Overlay;
 			midBorderRect = new Rect (0f, 0f, 0f, 0f);
 
-			SetGameCamera (overlayCamera);
+			SetGameCamera (mainIsUnderlay ? underlayCamera : overlayCamera);
 
 			overlayDepthBackup = Camera.depth;
-			Camera.depth = underlayCamera.Camera.depth + 1f;
+
+			if (mainIsUnderlay)
+			{
+				Camera.depth = overlayCamera.Camera.depth - 1f;
+			}
+			else
+			{
+				Camera.depth = underlayCamera.Camera.depth + 1f;
+			}
+
 			overlayRect = _overlayRect;
 			if (useRectCentre)
 			{
@@ -1392,15 +1409,16 @@ namespace AC
 		 * <param name = "isMainCamera">If True, then the Rect of the MainCamera's view will be returned. Otherwise, the Rect of the other split-screen _Camera's view will be returned</param>
 		 * <returns>A screen Rect of the split-screen camera</returns>
 		 */
-		public Rect GetSplitScreenRect (bool isMainCamera)
+		public Rect GetSplitScreenRect(bool isMainCamera)
 		{
-			Rect playableArea = GetPlayableScreenArea (true);
+			Rect playableArea = GetPlayableScreenArea(true);
 
 			if (splitOrientation == CameraSplitOrientation.Overlay)
 			{
+				if (overlayMainUnder) isMainCamera = !isMainCamera;
 				if (isMainCamera)
 				{
-					return new Rect (playableArea.x + (playableArea.width * overlayRect.x),
+					return new Rect(playableArea.x + (playableArea.width * overlayRect.x),
 									 playableArea.y + (playableArea.height * overlayRect.y),
 									 playableArea.width * overlayRect.width,
 									 playableArea.height * overlayRect.height);
@@ -1423,10 +1441,10 @@ namespace AC
 			}
 
 			Vector2 splitSize = (splitOrientation == CameraSplitOrientation.Horizontal)
-								? new Vector2 (playableArea.width, split * playableArea.height)
-								: new Vector2 (split * playableArea.width, playableArea.height);
+								? new Vector2(playableArea.width, split * playableArea.height)
+								: new Vector2(split * playableArea.width, playableArea.height);
 
-			return new Rect (splitPosition, splitSize);
+			return new Rect(splitPosition, splitSize);
 		}
 
 
@@ -2221,6 +2239,7 @@ namespace AC
 			}
 
 			playableScreenRect = new Rect (trueSafeRect);
+			float playableScreenRectMagnitude = playableScreenRect.size.magnitude;
 			playableScreenRectInverted = new Rect (new Vector2 (trueSafeRect.x,  ACScreen.height - trueSafeRect.y - trueSafeRect.height), trueSafeRect.size);
 
 			playableScreenRectRelative = new Rect (playableScreenRect.x / ACScreen.width, playableScreenRect.y / ACScreen.height, playableScreenRect.width /  ACScreen.width, playableScreenRect.height /  ACScreen.height);

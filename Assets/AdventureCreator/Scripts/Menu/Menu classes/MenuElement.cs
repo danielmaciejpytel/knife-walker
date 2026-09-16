@@ -99,6 +99,8 @@ namespace AC
 		private string cachedLabel;
 		protected Menu parentMenu;
 
+		private List<EventTrigger.Entry> definedTriggers = new List<EventTrigger.Entry> ();
+
 		[SerializeField] protected Rect relativeRect;
 		[SerializeField] protected Vector2 relativePosition;
 		[SerializeField] protected int numSlots;
@@ -206,20 +208,31 @@ namespace AC
 		protected void CreateUIEvent (UnityEngine.UI.Button uiButton, AC.Menu _menu, UIPointerState uiPointerState = UIPointerState.PointerClick, int _slotIndex = 0, bool liveState = true)
 		{
 			liveState = false; // Causing issues, just use Event System
-
-			if (uiPointerState == UIPointerState.PointerClick)
+			/*if (uiPointerState == UIPointerState.PointerClick)
 			{
 				uiButton.onClick.AddListener (() => {
 					ProcessClickUI (_menu, _slotIndex, liveState ? KickStarter.playerInput.GetMouseState () : MouseState.SingleClick);
 				});
 			}
-			else
+			else*/
 			{
 				EventTrigger eventTrigger = uiButton.gameObject.GetComponent <EventTrigger>();
-				if (eventTrigger == null)
+				if (eventTrigger)
+				{
+					// Clear previous
+					foreach (var definedTrigger in definedTriggers)
+					{
+						if (eventTrigger.triggers.Contains (definedTrigger))
+						{
+							eventTrigger.triggers.Remove (definedTrigger);
+						}
+					}
+				}
+				else
 				{
 					eventTrigger = uiButton.gameObject.AddComponent <EventTrigger>();
 				}
+
 				EventTrigger.Entry entry = new EventTrigger.Entry ();
 
 				if (uiPointerState == UIPointerState.PointerDown)
@@ -230,12 +243,31 @@ namespace AC
 				{
 					entry.eventID = EventTriggerType.PointerEnter;
 				}
+				else if (uiPointerState == UIPointerState.PointerClick)
+				{
+					entry.eventID = EventTriggerType.PointerClick;
+				}
 
 				entry.callback.AddListener ((eventData) => {
-					ProcessClickUI (_menu, _slotIndex, liveState ? KickStarter.playerInput.GetMouseState () : MouseState.SingleClick);
+					ProcessClickUI ((PointerEventData) eventData, _menu, _slotIndex);
+					//ProcessClickUI (_menu, _slotIndex, liveState ? KickStarter.playerInput.GetMouseState () : MouseState.SingleClick);
 				} );
 
 				eventTrigger.triggers.Add (entry);
+
+				EventTrigger.Entry submitEntry = new EventTrigger.Entry ();
+				submitEntry.eventID = EventTriggerType.Submit;
+				submitEntry.callback.AddListener ((eventData) => { ProcessClickUI (_menu, _slotIndex, MouseState.SingleClick); } );
+				eventTrigger.triggers.Add (submitEntry);
+
+				EventTrigger.Entry cancelEntry = new EventTrigger.Entry ();
+				cancelEntry.eventID = EventTriggerType.Cancel;
+				cancelEntry.callback.AddListener ((eventData) => { ProcessClickUI (_menu, _slotIndex, MouseState.RightClick); } );
+				eventTrigger.triggers.Add (cancelEntry);
+
+				definedTriggers.Add (entry);
+				definedTriggers.Add (submitEntry);
+				definedTriggers.Add (cancelEntry);
 			}
 		}
 
@@ -252,6 +284,21 @@ namespace AC
 			{
 				uiSlotClick = selectable.gameObject.AddComponent<UISlotClick>();
 				uiSlotClick.Setup (_menu, this, _slotIndex);
+			}
+		}
+
+
+		private void ProcessClickUI (PointerEventData data, Menu _menu, int _slotIndex)
+		{
+			if (!isVisible) return;
+
+			if (data.button == PointerEventData.InputButton.Left)
+			{
+				ProcessClickUI(_menu, _slotIndex, MouseState.SingleClick);
+			}
+			else if (data.button == PointerEventData.InputButton.Right)
+			{
+				ProcessClick(_menu, _slotIndex, MouseState.RightClick);
 			}
 		}
 
@@ -499,7 +546,8 @@ namespace AC
 			{
 				CustomGUILayout.BeginVertical ();
 				font = (Font) CustomGUILayout.ObjectField <Font> ("Font:", font, false, apiPrefix + ".font", "The text font");
-				fontScaleFactor = CustomGUILayout.Slider ("Text size:", fontScaleFactor, 1f, 4f, apiPrefix + ".fontScaleFactor", "The font size");
+				fontScaleFactor = CustomGUILayout.FloatField ("Text size:", fontScaleFactor, apiPrefix + ".fontScaleFactor", "The font size");
+				if (fontScaleFactor <= 1f) fontScaleFactor = 1f;
 				fontColor = CustomGUILayout.ColorField ("Text colour:", fontColor, apiPrefix + ".fontColor", "The font colour");
 
 				ShowTextGUI (apiPrefix);
@@ -744,7 +792,7 @@ namespace AC
 		/**
 		 * <summary>Checks if the Menu makes reference to a particular ActionList asset</summary>
 		 * <param name = "actionListAsset">The ActionList to check for</param>
-		 * <returns>True if the Menu references the ActionList</param>
+		 * <returns>True if the Menu references the ActionList</returns>
 		 */
 		public virtual bool ReferencesAsset (ActionListAsset actionListAsset)
 		{
@@ -758,7 +806,7 @@ namespace AC
 		 * <summary>Checks if the Element makes reference to a particular GameObject</summary>
 		 * <param name = "gameObject">The GameObject to check for</param>
 		 * <param name = "id">The GameObject's associated ConstantID value</param>
-		 * <returns>True if the Element references the GameObject</param>
+		 * <returns>True if the Element references the GameObject</returns>
 		 */
 		public virtual bool ReferencesObjectOrID (GameObject gameObject, int id)
 		{
@@ -769,7 +817,7 @@ namespace AC
 		/**
 		 * <summary>Gets the slot index that reference a particular GameObject</summary>
 		 * <param name = "gameObject">The GameObject to check for</param>
-		 * <returns>The slot index that references the GameObject</param>
+		 * <returns>The slot index that references the GameObject</returns>
 		 */
 		public virtual int GetSlotIndex (GameObject gameObject)
 		{
@@ -1391,11 +1439,10 @@ namespace AC
 
 				if (field == null)
 				{
-					if (parentMenu && parentMenu.menuSource == MenuSource.UnityUiInScene)
+					if (!(parentMenu && parentMenu.menuSource == MenuSource.UnityUiInScene))
 					{
-						return;
+						ACDebug.LogWarning ("Cannot find " + typeof (T) + " for menu element " + title + " in Canvas " + canvas.name, canvas);
 					}
-					ACDebug.LogWarning ("Cannot find " + typeof (T) + " for menu element " + title + " in Canvas " + canvas.name, canvas);
 				}
 
 				existingField = field;

@@ -92,7 +92,7 @@ namespace AC
 
 		public void _Update ()
 		{
-			if (detectionMethod == TriggerDetectionMethod.TransformPosition)
+			if (detectionMethod == TriggerDetectionMethod.TransformPosition && gameObject.activeInHierarchy && this != null)
 			{
 				for (int i=0; i<positionDetectObjects.Count; i++)
 				{

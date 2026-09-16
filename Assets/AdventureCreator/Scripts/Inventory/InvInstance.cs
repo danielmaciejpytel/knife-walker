@@ -1603,6 +1603,9 @@ namespace AC
 
 			enabledCombineInteractions = newCombineInteractions.ToArray ();
 		}
+		
+		
+		public override string ToString() => "(" + ItemID + ") " + InvItem.label + ", Amount: " + Count;
 
 		#endregion
 

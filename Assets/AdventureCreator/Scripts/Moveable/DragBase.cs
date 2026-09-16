@@ -1,7 +1,7 @@
 ﻿/*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2026
  *	
  *	"DragBase.cs"
  * 
@@ -287,11 +287,10 @@ namespace AC
 		/** Checks if the object can currently be grabbed */
 		public bool CanGrab ()
 		{
-			if (IsOn (true) && PlayerIsWithinBoundary ())
-			{
-				return true;
-			}
-			return false;
+			if (!enabled) return false;
+			if (KickStarter.playerInteraction.selectionParent && !transform.IsChildOf(KickStarter.playerInteraction.selectionParent)) return false;
+			
+			return IsOn (true) && PlayerIsWithinBoundary ();
 		}
 
 
@@ -436,11 +435,11 @@ namespace AC
 				{
 					moveSound.Play (moveSoundClip, true);
 				}
-				moveSound.SetVolume (1f);
+				moveSound.ChangeRelativeVolume (1f);
 			}
 			else
 			{
-				moveSound.SetVolume (Mathf.MoveTowards (moveSound.audioSource.volume, 0f, Time.deltaTime * 60f));
+				moveSound.ChangeRelativeVolume (Mathf.MoveTowards (moveSound.audioSource.volume, 0f, Time.deltaTime * 60f));
 			}
 		}
 
@@ -524,15 +523,6 @@ namespace AC
 					Physics.IgnoreCollision (_collider1, _collider2, true);
 				}
 
-				if (ignorePlayerCollider && KickStarter.player)
-				{
-					Collider[] playerColliders = KickStarter.player.gameObject.GetComponentsInChildren<Collider> ();
-					foreach (Collider playerCollider in playerColliders)
-					{
-						Physics.IgnoreCollision (playerCollider, _collider1, true);
-					}
-				}
-
 				if (ignoreMoveableRigidbodies)
 				{
 					Collider[] allColliders = UnityVersionHandler.FindObjectsOfType<Collider> ();
@@ -548,6 +538,27 @@ namespace AC
 							}
 						}
 					}
+				}
+			}
+
+			LimitPlayerCollisions ();
+		}
+
+
+		protected void LimitPlayerCollisions ()
+		{
+			if (KickStarter.player == null || !ignorePlayerCollider) return;
+
+			Collider[] ownColliders = GetComponentsInChildren<Collider> ();
+
+			foreach (Collider _collider1 in ownColliders)
+			{
+				if (_collider1.isTrigger) continue;
+
+				Collider[] playerColliders = KickStarter.player.gameObject.GetComponentsInChildren<Collider> ();
+				foreach (Collider playerCollider in playerColliders)
+				{
+					Physics.IgnoreCollision (playerCollider, _collider1, true);
 				}
 			}
 		}

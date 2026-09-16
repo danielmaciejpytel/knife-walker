@@ -26,23 +26,20 @@ namespace AC.Templates.MobileJoystick
 
 		#region UnityStandards
 
-		private void Start ()
+		private void Start()
 		{
-			canvas = GetComponent<Canvas> ();
+			canvas = GetComponent<Canvas>();
 		}
 
 
 		private void OnEnable ()
 		{
-			if (KickStarter.playerInput)
-			{
-				KickStarter.playerInput.InputGetAxisDelegate = InputGetAxis;
-				KickStarter.playerInput.InputGetButtonDelegate = InputGetButton;
-				KickStarter.playerInput.InputGetFreeAimDelegate = InputGetFreeAim;
+			PlayerInput.InputGetAxisDelegates.Add (InputGetAxis);
+			PlayerInput.InputGetButtonDelegates.Add (InputGetButton);
+			PlayerInput.InputGetFreeAimDelegates.Add (InputGetFreeAim);
 
-				KickStarter.playerInput.InputGetMouseButtonDownDelegate = InputGetMouseButtonDown;
-				KickStarter.playerInput.InputGetTouchPhaseDelegate = InputGetTouchPhase;
-			}
+			PlayerInput.InputGetMouseButtonDownDelegates.Add (InputGetMouseButtonDown);
+			PlayerInput.InputGetTouchPhaseDelegates.Add (InputGetTouchPhase);
 
 			EventManager.OnSwitchCamera += OnSwitchCamera;
 		}
@@ -50,16 +47,13 @@ namespace AC.Templates.MobileJoystick
 
 		private void OnDisable ()
 		{
-			if (KickStarter.playerInput)
-			{
-				KickStarter.playerInput.InputGetAxisDelegate = null;
-				KickStarter.playerInput.InputGetButtonDelegate = null;
-				KickStarter.playerInput.InputGetFreeAimDelegate = null;
+			PlayerInput.InputGetAxisDelegates.Remove (InputGetAxis);
+			PlayerInput.InputGetButtonDelegates.Remove (InputGetButton);
+			PlayerInput.InputGetFreeAimDelegates.Remove (InputGetFreeAim);
 
-				KickStarter.playerInput.InputGetMouseButtonDownDelegate = null;
-				KickStarter.playerInput.InputGetTouchPhaseDelegate = null;
-			}
-
+			PlayerInput.InputGetMouseButtonDownDelegates.Remove (InputGetMouseButtonDown);
+			PlayerInput.InputGetTouchPhaseDelegates.Remove (InputGetTouchPhase);
+			
 			EventManager.OnSwitchCamera -= OnSwitchCamera;
 		}
 
@@ -203,19 +197,19 @@ namespace AC.Templates.MobileJoystick
 		{
 			if (axis == cameraJoystick.horizontalAxis)
 			{
-				return cameraJoystick.GetDragVector ().x * cameraJoystick.EffectScaler;
+				return cameraJoystick.GetDragVector().x * cameraJoystick.EffectScaler;
 			}
 			else if (axis == cameraJoystick.verticalAxis)
 			{
-				return cameraJoystick.GetDragVector ().y * cameraJoystick.EffectScaler;
+				return cameraJoystick.GetDragVector().y * cameraJoystick.EffectScaler;
 			}
 			else if (axis == playerJoystick.horizontalAxis)
 			{
-				return playerJoystick.GetDragVector ().x * playerJoystick.EffectScaler;
+				return playerJoystick.GetDragVector().x * playerJoystick.EffectScaler;
 			}
 			else if (axis == playerJoystick.verticalAxis)
 			{
-				return playerJoystick.GetDragVector ().y * playerJoystick.EffectScaler;
+				return playerJoystick.GetDragVector().y * playerJoystick.EffectScaler;
 			}
 
 			try { return Input.GetAxis (axis); }
@@ -229,23 +223,41 @@ namespace AC.Templates.MobileJoystick
 		}
 
 
-		private bool InputGetMouseButtonDown (int button)
+		private bool InputGetMouseButtonDown(int button)
 		{
 			if (playerJoystick.IsUsed || cameraJoystick.IsUsed)
 			{
 				return false;
 			}
-			return Input.GetMouseButtonDown (button);
+#if InputSystemIsPresent
+			switch (button)
+			{
+				case 0:
+					return UnityEngine.InputSystem.Mouse.current.leftButton.wasPressedThisFrame;
+
+				case 1:
+					return UnityEngine.InputSystem.Mouse.current.rightButton.wasPressedThisFrame;
+
+				default:
+					return false;
+			}
+#else
+			return Input.GetMouseButtonDown(button);
+#endif
 		}
 
 
-		private TouchPhase InputGetTouchPhase (int index)
+		private TouchPhase InputGetTouchPhase(int index)
 		{
 			if (playerJoystick.IsUsed || cameraJoystick.IsUsed)
 			{
 				return TouchPhase.Canceled;
 			}
-			return Input.GetTouch (index).phase;
+#if InputSystemIsPresent
+			return TouchPhase.Canceled;
+#else
+			return Input.GetTouch(index).phase;
+#endif
 		}
 
 		#endregion

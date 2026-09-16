@@ -22,7 +22,7 @@ namespace AC
 {
 
 	[System.Serializable]
-	public class ActionContainerOpen : Action
+	public class ActionContainerOpen : Action, IMenuReferencer
 	{
 
 		public bool useActive = false;
@@ -166,15 +166,49 @@ namespace AC
 			return base.ReferencesObjectOrID (_gameObject, id);
 		}
 
+
+		public int GetNumMenuReferences (string menuName, string elementName = "")
+		{
+			if (!useActive && setElement && menuParameterID < 0 && this.menuName == menuName)
+			{
+				return 1;
+			}
+			return 0;
+		}
+
 		#endif
 
 
 		/**
-		* <summary>Creates a new instance of the 'Containter: Open' Action</summary>
+		* <summary>Creates a new instance of the 'Container: Open' Action</summary>
 		* <param name = "containerToOpen">The Container to open</param>
 		* <returns>The generated Action</returns>
 		*/
-		public static ActionContainerOpen CreateNew (Container containerToOpen)
+		public static ActionContainerOpen CreateNew (Container containerToOpen = null)
+		{
+			ActionContainerOpen newAction = CreateNew<ActionContainerOpen> ();
+			newAction.container = containerToOpen;
+			if (newAction.container)
+			{
+				newAction.useActive = false;
+				newAction.TryAssignConstantID (newAction.container, ref newAction.constantID);
+			}
+			else
+			{
+				newAction.useActive = true;
+			}
+			return newAction;
+		}
+		
+		
+		/**
+		* <summary>Creates a new instance of the 'Container: Open' Action</summary>
+		* <param name = "containerToOpen">The Container to open</param>
+		* <param name = "menuName">The name of the Menu to show the Container's contents in</param>
+		* <param name = "elementName">The name of the InventoryBox element to show the Container's contents in</param>
+		* <returns>The generated Action</returns>
+		*/
+		public static ActionContainerOpen CreateNew (Container containerToOpen, string menuName, string elementName)
 		{
 			ActionContainerOpen newAction = CreateNew<ActionContainerOpen> ();
 			newAction.container = containerToOpen;
@@ -182,6 +216,10 @@ namespace AC
 			{
 				newAction.TryAssignConstantID (newAction.container, ref newAction.constantID);
 			}
+			newAction.setElement = true;
+			newAction.useActive = false;
+			newAction.menuName = menuName;
+			newAction.containerElementName = elementName;
 			return newAction;
 		}
 		

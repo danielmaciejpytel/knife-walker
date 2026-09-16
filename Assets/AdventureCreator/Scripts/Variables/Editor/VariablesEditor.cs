@@ -38,7 +38,7 @@ namespace AC
 			if (showVariablesList)
 			{
 				CustomGUILayout.BeginVertical ();
-				selectedVar = VariablesManager.ShowVarList (selectedVar, _target.vars, VariableLocation.Component, varFilter, _target.filter, typeFilter, !Application.isPlaying, _target, ref lastDragOver, ref lastSwapIndex, IsDragging ());
+				selectedVar = VariablesManager.ShowVarList (selectedVar, _target.vars, VariableLocation.Component, varFilter, _target.filter, typeFilter, !Application.isPlaying, string.Empty, _target, ref lastDragOver, ref lastSwapIndex, IsDragging ());
 				CustomGUILayout.EndVertical ();
 			}
 

@@ -1,7 +1,7 @@
 ﻿/*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2026
  *	
  *	"DocumentInstance.cs"
  * 
@@ -27,6 +27,8 @@ namespace AC
 		public int lastOpenPage = 1;
 		/** If True, the Document has been read by the Player */
 		public bool hasBeenViewed;
+		
+		public readonly HashSet<int> HiddenIndices = new();
 		private readonly Dictionary<int, PageTextureOverride> textureOverrideDict;
 
 		#endregion
@@ -41,7 +43,15 @@ namespace AC
 			lastOpenPage = 1;
 			hasBeenViewed = false;
 			textureOverrideDict = new Dictionary<int, PageTextureOverride> ();
-
+			HiddenIndices = new();
+			if (document != null)
+			{
+				for (int i = 0; i < document.pages.Count; i++)
+				{
+					if (document.pages[i].isHiddenByDefault) HiddenIndices.Add(i);
+				}
+			}
+			
 			if (Document == null) ACDebug.LogWarning ("Invalid Document");
 			else if (!KickStarter.inventoryManager.IsInDocumentsCategory (Document.binID)) Document.binID = KickStarter.inventoryManager.GetFirstDocumentsCategoryID ();
 		}
@@ -54,7 +64,15 @@ namespace AC
 			textureOverrideDict = new Dictionary<int, PageTextureOverride> ();
 			lastOpenPage = 1;
 			hasBeenViewed = false;
-			 
+			HiddenIndices = new();
+			if (Document != null)
+			{
+				for (int i = 0; i < Document.pages.Count; i++)
+				{
+					if (Document.pages[i].isHiddenByDefault) HiddenIndices.Add(i);
+				}
+			}
+			
 			if (Document == null) ACDebug.LogWarning ("Invalid Document with ID " + id	);
 			else if (!KickStarter.inventoryManager.IsInDocumentsCategory (Document.binID)) Document.binID = KickStarter.inventoryManager.GetFirstDocumentsCategoryID ();
 		}
@@ -63,6 +81,17 @@ namespace AC
 
 
 		#region PublicFunctions
+		
+		public List<JournalPage> GetVisiblePages()
+		{
+			List<JournalPage> visiblePages = new();
+			for (int i = 0; i < Document.pages.Count; i++)
+			{
+				if (HiddenIndices.Contains(i)) continue;
+				visiblePages.Add(Document.pages[i]);
+			}
+			return visiblePages;
+		}
 
 		/** 
 		 * <summary>Gets the texture associated with a given page.  This can be overridden with SetPageTexture.</summary> 
@@ -128,6 +157,35 @@ namespace AC
 		public int DocumentID { get { return Document != null ? Document.ID : -1; } }
 		/** The linked Document's category ID, or -1 if invalid */
 		public int CategoryID { get { return Document != null ? Document.binID : -1; } }
+		
+		public string HiddenIndicesData
+		{
+			get
+			{
+				System.Text.StringBuilder data = new System.Text.StringBuilder ();
+				foreach (var index in HiddenIndices)
+				{
+					data.Append(index).Append(")");
+				}
+				if (HiddenIndices.Count > 0)
+				{
+					data.Remove (data.Length-1, 1);
+				}
+				return data.ToString();
+			}
+			set
+			{
+				string[] chunks = value.Split(")");
+				HiddenIndices.Clear();
+				foreach (var chunk in chunks)
+				{
+					if (int.TryParse(chunk, out int index))
+					{
+						HiddenIndices.Add(index);
+					}
+				}
+			}
+		}
 
 		#endregion
 

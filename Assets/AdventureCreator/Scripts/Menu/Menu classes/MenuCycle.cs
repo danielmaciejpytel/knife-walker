@@ -129,14 +129,7 @@ namespace AC
 		
 		private void CopyCycle (MenuCycle _element, bool ignoreUnityUI)
 		{
-			if (ignoreUnityUI)
-			{
-				uiButton = null;
-			}
-			else
-			{
-				uiButton = _element.uiButton;
-			}
+			uiButton = null;
 			uiText = null;
 
 			label = _element.label;
@@ -729,7 +722,7 @@ namespace AC
 				{
 					return linkedVariable.GetPopUpForIndex (index, Options.GetLanguage ());
 				}
-				return optionsArray [index];
+				return AdvGame.ConvertTokens(optionsArray [index]);
 			}
 
 			if (Application.isPlaying)
@@ -953,7 +946,7 @@ namespace AC
 						{
 							uiDropdownTMP.options.Add (new TMPro.TMP_Dropdown.OptionData ("New option"));
 						}
-						ACDebug.Log ("Cycle element '" + title + " is linked to a UI Dropdown with fewer options - adding them in automatically.");
+						ACDebug.Log ("Cycle element '" + title + "' is linked to a UI Dropdown with fewer options - adding them in automatically.");
 					}
 					else if (uiDropdownTMP.options.Count > numOptions)
 					{

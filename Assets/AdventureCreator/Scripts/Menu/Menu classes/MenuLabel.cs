@@ -126,21 +126,11 @@ namespace AC
 		
 		private void CopyLabel (MenuLabel _element, bool ignoreUnityUI)
 		{
-			if (ignoreUnityUI)
-			{
-				uiText = null;
-				#if TextMeshProIsPresent
-				uiTextTMP = null;
-				#endif
-			}
-			else
-			{
-				uiText = _element.uiText;
-				#if TextMeshProIsPresent
-				uiTextTMP = _element.uiTextTMP;
-				#endif
-			}
-
+			uiText = null;
+			#if TextMeshProIsPresent
+			uiTextTMP = null;
+			#endif
+			
 			_label = _element._label;
 			anchor = _element.anchor;
 			textEffects = _element.textEffects;
@@ -259,7 +249,7 @@ namespace AC
 					showPendingWhileMovingToHotspot = CustomGUILayout.ToggleLeft ("Show pending Interaction while moving to Hotspot?", showPendingWhileMovingToHotspot, apiPrefix + ".showPendingWhileMovingToHotspot", "If True, then the label will not change while the player is moving towards a Hotspot in order to run an interaction");
 				}
 				#if TextMeshProIsPresent
-				else if (menu.menuSource != MenuSource.AdventureCreator && labelType == AC_LabelType.DialogueLine && (KickStarter.speechManager.scrollSubtitles || KickStarter.speechManager.scrollNarration))
+				else if (menu.menuSource != MenuSource.AdventureCreator && menu.useTextMeshProComponents && labelType == AC_LabelType.DialogueLine && KickStarter.speechManager && (KickStarter.speechManager.scrollSubtitles || KickStarter.speechManager.scrollNarration))
 				{
 					hideScrollingCharacters = CustomGUILayout.Toggle ("TMPro Typewriter effect?", hideScrollingCharacters, apiPrefix + ".hideScrollingCharacters", "If True, all speech text will be fed to the TMPro Text component, and shown as speech scrolls. Otherwise, scrolling text will be fed character-by-character.");
 				}
@@ -507,7 +497,7 @@ namespace AC
 
 			if (!string.IsNullOrEmpty (overrideLabel))
 			{
-				newLabel = overrideLabel;
+				newLabel = KickStarter.runtimeLanguages.GetTranslation (overrideLabel, lineID, languageNumber, AC_TextType.MenuElement);
 			}
 			else
 			{
@@ -583,7 +573,7 @@ namespace AC
 								string line = speech.displayText;
 
 								#if TextMeshProIsPresent
-								if (uiTextTMP && hideScrollingCharacters)
+								if (uiTextTMP && hideScrollingCharacters && (KickStarter.speechManager.scrollSubtitles || KickStarter.speechManager.scrollNarration))
 								{
 									if (KickStarter.runtimeLanguages.LanguageReadsRightToLeft (Options.GetLanguageName ()))
 									{
@@ -721,6 +711,30 @@ namespace AC
 
 				case InventoryPropertyType.CustomScript:
 					return GetPropertyDisplayValue (languageNumber, overrideInventoryInstance);
+					
+				case InventoryPropertyType.SelectedDocument:
+					var document = KickStarter.runtimeDocuments.ActiveDocumentInstance;
+					if (document != null)
+					{
+						var property = document.Document.GetProperty(itemPropertyID);
+						if (property != null)
+						{
+							return property.GetDisplayValue(languageNumber);
+						}
+					}
+					return string.Empty;
+					
+				case InventoryPropertyType.SelectedObjective:
+					var objective = KickStarter.runtimeObjectives.SelectedObjective;
+					if (objective != null)
+					{
+						var property = objective.Objective.GetProperty(itemPropertyID);
+						if (property != null)
+						{
+							return property.GetDisplayValue(languageNumber);
+						}
+					}
+					return string.Empty;
 
 				default:
 					return string.Empty;

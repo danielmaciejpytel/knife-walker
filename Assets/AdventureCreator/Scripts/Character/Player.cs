@@ -1,7 +1,7 @@
 /*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2025
  *	
  *	"Player.cs"
  * 
@@ -9,8 +9,9 @@
  * 
  */
 
-using UnityEngine;
 using System.Collections;
+using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace AC
 {
@@ -57,8 +58,10 @@ namespace AC
 		public bool freeAimLocked = false;
 		public bool jumpingLocked = false;
 
+
 		#if UNITY_2019_2_OR_NEWER
 		public bool autoStickToNavMesh = false;
+		private PolygonCollider2D[] autoStickPolys;
 		#endif
 
 		#endregion
@@ -68,11 +71,6 @@ namespace AC
 
 		protected new void Awake ()
 		{
-			if (soundChild && soundChild.audioSource)
-			{
-				audioSource = soundChild.audioSource;
-			}
-
 			skinnedMeshRenderers = GetComponentsInChildren <SkinnedMeshRenderer>();
 
 			if (hotspotDetector == null)
@@ -118,6 +116,7 @@ namespace AC
 			base.OnEnable ();
 			EventManager.OnSetPlayer += OnSetPlayer;
 			EventManager.OnBeforeLoading += OnBeforeLoading;
+			EventManager.OnInitialiseScene += OnInitialiseScene;
 			
 			AutoSyncHotspot ();
 		}
@@ -128,6 +127,7 @@ namespace AC
 			base.OnDisable ();
 			EventManager.OnSetPlayer -= OnSetPlayer;
 			EventManager.OnBeforeLoading -= OnBeforeLoading;
+			EventManager.OnInitialiseScene -= OnInitialiseScene;
 		}
 
 
@@ -704,10 +704,6 @@ namespace AC
 				playerData = GetAnimEngine ().SavePlayerData (playerData, this);
 			}
 						
-			// Sound
-			playerData.playerWalkSound = AssetLoader.GetAssetInstanceID (walkSound);
-			playerData.playerRunSound = AssetLoader.GetAssetInstanceID (runSound);
-			
 			// Portrait graphic
 			playerData.playerPortraitGraphic = AssetLoader.GetAssetInstanceID (portraitIcon.texture);
 
@@ -734,7 +730,13 @@ namespace AC
 			playerData.playerSpriteDirection = GetSpriteDirectionToSave ();
 
 			playerData.playerSpriteScale = spriteScale;
-			if (spriteChild && spriteChild.GetComponent <Renderer>())
+			var sortingGroup = GetComponentInChildren<SortingGroup> ();
+			if (sortingGroup)
+			{
+				playerData.playerSortingOrder = sortingGroup.sortingOrder;
+				playerData.playerSortingLayer = sortingGroup.sortingLayerName;
+			}
+			else if (spriteChild && spriteChild.GetComponent <Renderer>())
 			{
 				playerData.playerSortingOrder = spriteChild.GetComponent <Renderer>().sortingOrder;
 				playerData.playerSortingLayer = spriteChild.GetComponent <Renderer>().sortingLayerName;
@@ -980,7 +982,13 @@ namespace AC
 			}
 			if (playerData.playerLockSorting)
 			{
-				if (spriteChild && spriteChild.GetComponent <Renderer>())
+				var sortingGroup = GetComponentInChildren<SortingGroup> ();
+				if (sortingGroup)
+				{
+					sortingGroup.sortingOrder = playerData.playerSortingOrder;
+					sortingGroup.sortingLayerName = playerData.playerSortingLayer;
+				}
+				else if (spriteChild && spriteChild.GetComponent <Renderer>())
 				{
 					spriteChild.GetComponent <Renderer>().sortingOrder = playerData.playerSortingOrder;
 					spriteChild.GetComponent <Renderer>().sortingLayerName = playerData.playerSortingLayer;
@@ -1138,7 +1146,7 @@ namespace AC
 			}
 
 			GameObject[] heldObjectsToSpawn = (playerData.attachmentPointDatas != null) ? new GameObject[playerData.attachmentPointDatas.Length] : new GameObject[0];
-			for (int i = 0; i < playerData.attachmentPointDatas.Length; i++)
+			for (int i = 0; i < heldObjectsToSpawn.Length; i++)
 			{
 				if (playerData.attachmentPointDatas[i].heldSceneItemConstantID != 0 && i < attachmentPoints.Length && attachmentPoints[i].transform)
 				{
@@ -1296,16 +1304,40 @@ namespace AC
 			if (IsMovingAlongPath () || !SceneSettings.IsUnity2D () || KickStarter.sceneSettings == null || KickStarter.sceneSettings.navMesh == null || KickStarter.settingsManager.movementMethod == MovementMethod.PointAndClick) return;
 
 			#if UNITY_2019_2_OR_NEWER
-			Vector3 position = transform.position;
-			var poly = KickStarter.sceneSettings.navMesh.GetComponent<PolygonCollider2D> ();
-			if (poly)
-			{
-				position = poly.ClosestPoint (position);
 
-				if (position != transform.position)
+			if (autoStickPolys == null || autoStickPolys.Length == 0 || autoStickPolys[0] == null || autoStickPolys[0].gameObject != KickStarter.sceneSettings.navMesh.gameObject)
+			{
+				autoStickPolys = KickStarter.sceneSettings.navMesh.GetComponents<PolygonCollider2D> ();
+			}
+
+			float minSqrDist = 0f;
+			int bestIndex = -1;
+			Vector3 bestPosition = Vector3.zero;
+
+			for (int i = 0; i < autoStickPolys.Length; i++)
+			{
+				if (autoStickPolys[i] == null) continue;
+
+				Vector3 newPosition = autoStickPolys[i].ClosestPoint (transform.position);
+				
+				float sqrDist = (newPosition - transform.position).sqrMagnitude;
+				if (sqrDist == 0f)
 				{
-					Teleport (position);
+					// Already inside
+					return;
 				}
+
+				if (bestIndex < 0 || sqrDist < minSqrDist)
+				{
+					minSqrDist = sqrDist;
+					bestIndex = i;
+					bestPosition = newPosition;
+				}
+			}
+
+			if (bestIndex >= 0)
+			{
+				Teleport (bestPosition);
 			}
 			#endif
 		}
@@ -1355,6 +1387,12 @@ namespace AC
 					}
 				}
 			}
+		}
+
+
+		protected void OnInitialiseScene ()
+		{
+			autoStickPolys = null;
 		}
 
 

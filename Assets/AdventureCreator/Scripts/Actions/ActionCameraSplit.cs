@@ -69,7 +69,7 @@ namespace AC
 
 			if (orientation == CameraSplitOrientation.Overlay)
 			{
-				mainCamera.SetBoxOverlay (runtimeCam1, runtimeCam2, overlayRect);
+				mainCamera.SetBoxOverlay (runtimeCam1, runtimeCam2, overlayRect, true, mainIsTopLeft);
 			}
 			else
 			{
@@ -138,6 +138,8 @@ namespace AC
 
 					overlayRect.width = EditorGUILayout.Slider ("Size X:", overlayRect.width, 0f, 1f);
 					overlayRect.height = EditorGUILayout.Slider ("Size Y:", overlayRect.height, 0f, 1f);
+
+					mainIsTopLeft = EditorGUILayout.Toggle ("Main Camera is " + label1.ToLower () + "?", mainIsTopLeft);
 				}
 				else
 				{

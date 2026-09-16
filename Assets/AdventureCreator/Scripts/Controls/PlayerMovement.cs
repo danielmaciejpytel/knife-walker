@@ -76,17 +76,26 @@ namespace AC
 					return;
 				}
 				
-				if (KickStarter.playerInput.GetMouseState () == MouseState.SingleClick && !KickStarter.playerMenus.IsInteractionMenuOn () && !KickStarter.playerMenus.IsMouseOverMenu () && !KickStarter.playerInteraction.IsMouseOverHotspot ())
+				if (KickStarter.playerInput.GetMouseState () == MouseState.SingleClick &&
+					!KickStarter.playerMenus.IsInteractionMenuOn () && !KickStarter.playerMenus.IsMouseOverMenu () &&
+					!KickStarter.playerInteraction.IsMouseOverHotspot () &&
+					(KickStarter.settingsManager.movementMethod == MovementMethod.PointAndClick || KickStarter.settingsManager.movementMethod == MovementMethod.StraightToCursor))
 				{
 					if (KickStarter.playerInteraction.GetHotspotMovingTo ())
 					{
 						KickStarter.playerInteraction.StopMovingToHotspot ();
 					}
 
-					KickStarter.playerInteraction.DeselectHotspot (false);
+					if (KickStarter.settingsManager.hotspotDetection == HotspotDetection.MouseOver)
+					{
+						KickStarter.playerInteraction.DeselectHotspot (false);
+					}
 				}
 
-				if (KickStarter.playerInteraction.GetHotspotMovingTo () && KickStarter.settingsManager.movementMethod != MovementMethod.PointAndClick && KickStarter.playerInput.GetMoveKeys ().sqrMagnitude > 0f)
+				if (KickStarter.playerInteraction.GetHotspotMovingTo () &&
+					KickStarter.settingsManager.movementMethod != MovementMethod.PointAndClick &&
+					KickStarter.settingsManager.movementMethod != MovementMethod.StraightToCursor &&
+					KickStarter.playerInput.GetMoveKeys ().sqrMagnitude > 0f)
 				{
 					KickStarter.playerInteraction.StopMovingToHotspot ();
 				}
@@ -111,7 +120,7 @@ namespace AC
 							else
 							{
 								// Move along pre-determined path
-								DirectControlPlayerPath (KickStarter.playerInput.GetMoveKeys ());
+								DirectControlPlayerPath (false, KickStarter.playerInput.GetMoveKeys ());
 							}
 						}
 						break;
@@ -156,8 +165,8 @@ namespace AC
 									break;
 
 								case FirstPersonTouchScreen.CustomInput:
-									FirstPersonControlPlayer ();
-									DirectControlPlayer (true, KickStarter.playerInput.GetMoveKeys ());
+									FirstPersonControlPlayer();
+									DirectControlPlayer(true, KickStarter.playerInput.GetMoveKeys());
 									break;
 
 								default:
@@ -166,8 +175,17 @@ namespace AC
 						}
 						else
 						{
-							FirstPersonControlPlayer ();
-							DirectControlPlayer (true, KickStarter.playerInput.GetMoveKeys ());
+							FirstPersonControlPlayer();
+							if (KickStarter.player.GetPath () == null || !KickStarter.player.IsLockedToPath ())
+							{
+								// Normal gameplay
+								DirectControlPlayer (true, KickStarter.playerInput.GetMoveKeys ());
+							}
+							else
+							{
+								// Move along pre-determined path
+								DirectControlPlayerPath (true, KickStarter.playerInput.GetMoveKeys ());
+							}
 						}
 						break;
 				}
@@ -710,15 +728,15 @@ namespace AC
 						releasedOneAxis = true;
 					}
 
-					lastFrameMoveKeys = moveKeys;
 					if (releasedOneAxis)
 					{
+						lastFrameMoveKeys = moveKeys;
 						return;
 					}
 
-					if (!KickStarter.playerInput.IsCameraLockSnapped ())
+					if (!KickStarter.playerInput.IsCameraLockSnapped())
 					{
-						if (SceneSettings.IsTopDown ())
+						if (SceneSettings.IsTopDown())
 						{
 							cameraAlignedInput = (moveKeys.y * Vector3.forward) + (moveKeys.x * Vector3.right);
 						}
@@ -727,68 +745,75 @@ namespace AC
 							if (!isFirstPerson && !hasTargetLock && KickStarter.settingsManager.directMovementPerspective && SceneSettings.CameraPerspective == CameraPerspective.ThreeD)
 							{
 								Vector3 forwardVector = (KickStarter.player.Transform.position - KickStarter.CameraMainTransform.position).normalized;
-								Vector3 rightVector = -Vector3.Cross (forwardVector, KickStarter.CameraMainTransform.up);
+								Vector3 rightVector = -Vector3.Cross(forwardVector, KickStarter.CameraMainTransform.up);
 								cameraAlignedInput = (moveKeys.y * forwardVector) + (moveKeys.x * rightVector);
 							}
 							else
 							{
-								cameraAlignedInput = (moveKeys.y * MainCamera.ForwardVector ()) + (moveKeys.x * MainCamera.RightVector ());
+								cameraAlignedInput = (moveKeys.y * MainCamera.ForwardVector()) + (moveKeys.x * MainCamera.RightVector());
 							}
 						}
 					}
 
-					KickStarter.player.isRunning = KickStarter.playerInput.IsPlayerControlledRunning ();
+					KickStarter.player.isRunning = KickStarter.playerInput.IsPlayerControlledRunning();
 					if (isFirstPerson && moveKeys.y < 0f && !KickStarter.player.canRunInReverse) KickStarter.player.isRunning = false;
 					KickStarter.player.charState = CharState.Move;
 
 					if (isFirstPerson)
 					{
-						KickStarter.player.SetMoveDirection (cameraAlignedInput, AC.KickStarter.settingsManager.firstPersonMovementSmoothing);
+						KickStarter.player.SetMoveDirection(cameraAlignedInput, lastFrameMoveKeys.sqrMagnitude > 0f && AC.KickStarter.settingsManager.firstPersonMovementSmoothing);
 					}
 					else if (hasTargetLock)
 					{
-						KickStarter.player.SetMoveDirection (cameraAlignedInput, AC.KickStarter.settingsManager.firstPersonMovementSmoothing);
+						KickStarter.player.SetMoveDirection(cameraAlignedInput, lastFrameMoveKeys.sqrMagnitude > 0f && AC.KickStarter.settingsManager.firstPersonMovementSmoothing);
 					}
 					else
 					{
 						switch (KickStarter.settingsManager.directTurnMode)
 						{
 							case DirectTurnMode.TurningCircle:
-								KickStarter.player.SetLookDirection (cameraAlignedInput, false);
-								KickStarter.player.SetMoveDirectionAsForward ();
+								KickStarter.player.SetLookDirection(cameraAlignedInput, false);
+								KickStarter.player.SetMoveDirectionAsForward();
 								break;
 
 							case DirectTurnMode.Independent:
-								KickStarter.player.SetLookDirection (cameraAlignedInput, false);
-								if (SceneSettings.IsUnity2D ())
+								KickStarter.player.SetLookDirection(cameraAlignedInput, false);
+								if (SceneSettings.IsUnity2D())
 								{
-									KickStarter.player.SetMoveDirection ((moveKeys.y * KickStarter.CameraMainTransform.up) + (moveKeys.x * KickStarter.CameraMainTransform.right), true);
+									KickStarter.player.SetMoveDirection((moveKeys.y * KickStarter.CameraMainTransform.up) + (moveKeys.x * KickStarter.CameraMainTransform.right), true);
 								}
 								else
 								{
-									KickStarter.player.SetMoveDirection (cameraAlignedInput, true);
+									KickStarter.player.SetMoveDirection(cameraAlignedInput, true);
 								}
 								break;
 
 							case DirectTurnMode.Snap:
-								KickStarter.player.SetLookDirection (cameraAlignedInput, true);
-								KickStarter.player.SetMoveDirectionAsForward ();
+								KickStarter.player.SetLookDirection(cameraAlignedInput, true);
+								KickStarter.player.SetMoveDirectionAsForward();
 								break;
 
 							default:
 								break;
 						}
 					}
-				}
-				else if (KickStarter.player.charState == CharState.Move && KickStarter.playerInteraction.GetHotspotMovingTo () == null && !KickStarter.player.IsPathfinding ())
-				{
-					if (KickStarter.settingsManager.stopTurningWhenReleaseInput && !isFirstPerson && !hasTargetLock)
-					{
-						KickStarter.player.SetLookDirection (KickStarter.player.TransformForward, false);
-						KickStarter.player.SetMoveDirectionAsForward ();
-					}
 
-					KickStarter.player.charState = CharState.Decelerate;
+					lastFrameMoveKeys = moveKeys;
+				}
+				else
+				{
+					lastFrameMoveKeys = Vector2.zero;
+
+					if (KickStarter.player.charState == CharState.Move && KickStarter.playerInteraction.GetHotspotMovingTo() == null && !KickStarter.player.IsPathfinding())
+					{
+						if (KickStarter.settingsManager.stopTurningWhenReleaseInput && !isFirstPerson && !hasTargetLock)
+						{
+							KickStarter.player.SetLookDirection(KickStarter.player.TransformForward, false);
+							KickStarter.player.SetMoveDirectionAsForward();
+						}
+
+						KickStarter.player.charState = CharState.Decelerate;
+					}
 				}
 			}
 			
@@ -862,7 +887,7 @@ namespace AC
 		}
 
 
-		protected void DirectControlPlayerPath (Vector2 moveKeys)
+		protected void DirectControlPlayerPath (bool isFirstPerson, Vector2 moveKeys)
 		{
 			if (moveKeys != Vector2.zero)
 			{
@@ -871,6 +896,10 @@ namespace AC
 				if (SceneSettings.IsTopDown ())
 				{
 					moveDirectionInput = (moveKeys.y * Vector3.forward) + (moveKeys.x * Vector3.right);
+				}
+				else if (isFirstPerson)
+				{
+					moveDirectionInput = (moveKeys.y * KickStarter.CameraMainTransform.forward) + (moveKeys.x * KickStarter.CameraMainTransform.right);
 				}
 				else
 				{
@@ -882,14 +911,15 @@ namespace AC
 					}
 				}
 
-				Vector3 direction = KickStarter.player.GetPath ().nodes[KickStarter.player.GetTargetNode ()] - KickStarter.player.Transform.position;
+				Vector3 direction = (KickStarter.player.GetPath ().nodes[KickStarter.player.GetTargetNode ()] - KickStarter.player.Transform.position).normalized;
 				if (SceneSettings.IsUnity2D ())
 				{
 					direction.z = 0f;
 				}
 
-				float dotProduct = Vector3.Dot (moveDirectionInput, direction.normalized);
-				if (dotProduct > 0.5f)
+				float dotProduct = Vector3.Dot (moveDirectionInput.normalized, direction);
+				float dotThreshold = isFirstPerson ? 0.5f : 0.5f;
+				if (dotProduct > dotThreshold)
 				{
 					if (KickStarter.player.LockedEndIndex >= 0 && KickStarter.player.LockedEndIndex == KickStarter.player.GetTargetNode ())
 					{
@@ -900,9 +930,36 @@ namespace AC
 					KickStarter.player.isRunning = KickStarter.playerInput.IsPlayerControlledRunning ();
 					KickStarter.player.charState = CharState.Move;
 				}
-				else if (dotProduct < -0.5f)
+				else if (dotProduct < -dotThreshold)
 				{
-					KickStarter.player.ReverseDirectPathDirection ();
+					KickStarter.player.ReverseDirectPathDirection();
+				}
+				else
+				{
+					float pathDot = Vector3.Dot (Vector3.up, direction);
+					if (Mathf.Abs(pathDot) > 0.9f)
+					{
+						// Ladder
+						bool goingDown = pathDot < 0f;
+
+						if (moveKeys.y > 0f)
+						{
+							if (goingDown)
+							{
+								KickStarter.player.ReverseDirectPathDirection ();
+							}
+						}
+						else
+						{
+							if (!goingDown)
+							{
+								KickStarter.player.ReverseDirectPathDirection ();
+							}
+						}
+
+						KickStarter.player.isRunning = KickStarter.playerInput.IsPlayerControlledRunning ();
+						KickStarter.player.charState = CharState.Move;
+					}
 				}
 			}
 			else
@@ -952,7 +1009,7 @@ namespace AC
 						return;
 					}
 
-					if (InvInstance.IsValid (KickStarter.runtimeInventory.SelectedInstance) && !KickStarter.settingsManager.canMoveWhenActive && KickStarter.settingsManager.movementMethod == MovementMethod.PointAndClick && !KickStarter.settingsManager.inventoryDisableLeft)
+					if (InvInstance.IsValid (KickStarter.runtimeInventory.SelectedInstance) && !KickStarter.settingsManager.canMoveWhenActive && KickStarter.settingsManager.movementMethod == MovementMethod.PointAndClick && KickStarter.settingsManager.leftClickDeselect != LeftClickDeselect.Never)
 					{
 						return;
 					}
@@ -1393,9 +1450,13 @@ namespace AC
 				#if !UNITY_EDITOR
 				if (KickStarter.settingsManager.inputMethod == InputMethod.TouchScreen)
 				{
-					if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+					if (KickStarter.playerInput.InputTouchCount() > 0 && KickStarter.playerInput.InputTouchPhase(0) == TouchPhase.Began)
 					{
+#if InputSystemIsPresent
+						if (KickStarter.playerMenus.EventSystem.IsPointerOverGameObject(UnityEngine.InputSystem.EnhancedTouch.Touch.activeTouches[0].touchId))
+#else
 						if (KickStarter.playerMenus.EventSystem.IsPointerOverGameObject(Input.GetTouch(0).fingerId))
+#endif
 						{
 							return true;
 						}

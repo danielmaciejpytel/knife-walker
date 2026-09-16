@@ -1,7 +1,7 @@
 ﻿/*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2026
  *	
  *	"Document.cs"
  * 
@@ -38,8 +38,8 @@ namespace AC
 		public bool carryOnStart = false;
 		/** A Texture2D associated with the Document. */
 		public Texture2D texture;
-		/** A List of JournalPages that make up the contents of the Document */
-		public List<JournalPage> pages = new List<JournalPage>();
+		/** A List of DocumentPages that make up the contents of the Document */
+		public List<DocumentPage> pages = new List<DocumentPage>();
 		/** The ID number of the document's InvBin category, as defined in InventoryManager */
 		public int binID = 0;
 		/** The Document's properties */
@@ -60,7 +60,7 @@ namespace AC
 			titleLineID = -1;
 			rememberLastOpenPage = false;
 			texture = null;
-			pages = new List<JournalPage>();
+			pages = new List<DocumentPage>();
 			carryOnStart = false;
 			binID = 0;
 
@@ -84,7 +84,7 @@ namespace AC
 			titleLineID = -1;
 			rememberLastOpenPage = false;
 			texture = null;
-			pages = new List<JournalPage>();
+			pages = new List<DocumentPage>();
 			carryOnStart = false;
 			binID = 0;
 
@@ -190,7 +190,7 @@ namespace AC
 		{
 			if (pages != null && pageIndex < pages.Count && pageIndex >= 0)
 			{
-				JournalPage page = pages[pageIndex];
+				DocumentPage page = pages[pageIndex];
 				return KickStarter.runtimeLanguages.GetTranslation (page.text, page.lineID, languageNumber, GetTranslationType (0));
 			}
 			return string.Empty;
@@ -236,7 +236,7 @@ namespace AC
 		protected bool showPageGUI = true;
 		protected bool showPropertiesGUI = true;
 
-		private JournalPage lastDragPageOver;
+		private DocumentPage lastDragPageOver;
 		private int lastSwapIndex;
 		private bool ignoreDrag;
 		private const string DragPageKey = "AC.JournalPage";
@@ -245,7 +245,7 @@ namespace AC
 		public void ClearIDs ()
 		{
 			titleLineID = -1;
-			foreach (JournalPage page in pages)
+			foreach (DocumentPage page in pages)
 			{
 				page.lineID = -1;
 			}
@@ -289,7 +289,7 @@ namespace AC
 			if (pages == null || pages.Count == 0)
 			{
 				pages.Clear ();
-				pages.Add (new JournalPage ());
+				pages.Add (new DocumentPage ());
 			}
 
 			CustomGUILayout.UpdateDrag (DragPageKey, lastDragPageOver, lastDragPageOver != null ? lastDragPageOver.text : string.Empty, ref ignoreDrag, OnCompleteDrag);
@@ -302,7 +302,7 @@ namespace AC
 			scrollPos = EditorGUILayout.BeginScrollView (scrollPos, GUILayout.Height (Mathf.Min (pages.Count * 21, 185f)+5));
 			for (int i = 0; i < pages.Count; i++)
 			{
-				JournalPage page = pages[i];
+				DocumentPage page = pages[i];
 				EditorGUILayout.BeginHorizontal ();
 
 				if (GUILayout.Toggle (selectedPage == i, "Page #" + i.ToString (), "Button"))
@@ -337,7 +337,7 @@ namespace AC
 			if (GUILayout.Button ("Create new page"))
 			{
 				Undo.RecordObject (KickStarter.inventoryManager, "Add Document page");
-				pages.Add (new JournalPage ());
+				pages.Add (new DocumentPage ());
 
 				selectedPage = pages.Count - 1;
 				EditorGUIUtility.editingTextField = false;
@@ -356,6 +356,10 @@ namespace AC
 					{
 						EditorGUILayout.LabelField ("Speech Manager ID:", pages[selectedPage].lineID.ToString ());
 					}
+					
+					bool isVisible = !pages[selectedPage].isHiddenByDefault;
+					isVisible = CustomGUILayout.Toggle("Is visible by default?", isVisible, apiPrefix + ".pages[" + selectedPage + "].pages[selectedPage].isHiddenByDefault");
+					pages[selectedPage].isHiddenByDefault = !isVisible;
 					CustomGUILayout.LabelField ("Page text:", string.Empty, apiPrefix + ".pages[" + selectedPage + "].text");
 					EditorStyles.textField.wordWrap = true;
 					pages[selectedPage].text = EditorGUILayout.TextArea (pages[selectedPage].text, GUILayout.MaxWidth (windowWidth));
@@ -420,7 +424,7 @@ namespace AC
 				{
 					case "Insert after":
 						Undo.RecordObject (KickStarter.inventoryManager, "Insert Document page");
-						pages.Insert (sidePage+1, new JournalPage ());
+						pages.Insert (sidePage+1, new DocumentPage ());
 						break;
 						
 					case "Delete":
@@ -476,7 +480,7 @@ namespace AC
 
 		protected void MovePageToTop (int a1)
 		{
-			JournalPage tempPage = pages[a1];
+			DocumentPage tempPage = pages[a1];
 			pages.Insert (0, tempPage);
 			pages.RemoveAt (a1+1);
 		}
@@ -484,7 +488,7 @@ namespace AC
 
 		protected void MovePageToBottom (int a1)
 		{
-			JournalPage tempPage = pages[a1];
+			DocumentPage tempPage = pages[a1];
 			pages.Add (tempPage);
 			pages.RemoveAt (a1);
 		}
@@ -492,7 +496,7 @@ namespace AC
 
 		protected void SwapPages (int a1, int a2)
 		{
-			JournalPage tempPage = pages[a1];
+			DocumentPage tempPage = pages[a1];
 			pages[a1] = pages[a2];
 			pages[a2] = tempPage;
 		}
@@ -500,13 +504,13 @@ namespace AC
 
 		private void OnCompleteDrag (object data)
 		{
-			JournalPage page = (JournalPage) data;
+			DocumentPage page = (DocumentPage) data;
 			if (page == null) return;
 
 			int dragIndex = pages.IndexOf (page);
 			if (dragIndex >= 0 && lastSwapIndex >= 0)
 			{
-				JournalPage tempItem = page;
+				DocumentPage tempItem = page;
 
 				pages.RemoveAt (dragIndex);
 
@@ -528,7 +532,7 @@ namespace AC
 		private bool IsDragging ()
 		{
 			object dragObject = DragAndDrop.GetGenericData (DragPageKey);
-			if (dragObject != null && dragObject is JournalPage)
+			if (dragObject != null && dragObject is DocumentPage)
 			{
 				return true;
 			}

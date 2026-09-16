@@ -643,6 +643,7 @@ namespace AC
 				{
 					textures = new Texture2D[i+1];
 				}
+				
 				if (textures[i] == null)
 				{
 					if (Texture2D == null)
@@ -665,6 +666,7 @@ namespace AC
 		}
 		
 		
+		private float lastAnimationSetTime = -1f;
 		/**
 		 * <summary>Gets a Rect that describes a slice of the animated texture that represents the current frame.</summary>
 		 * <returns>A Rect that describes a slice of the animated texture that represents the current frame</returns>
@@ -675,9 +677,6 @@ namespace AC
 			{
 				Reset ();
 			}
-
-			int currentRow = 1;
-			int frameInRow = 1;
 
 			if (frameIndex < 0f)
 			{
@@ -692,11 +691,18 @@ namespace AC
 					int i = Mathf.FloorToInt (frameIndex);
 					float frameSpeed = (frameSpeeds != null && i < frameSpeeds.Length) ? frameSpeeds[i] : 1f;
 
-					frameIndex += Time.unscaledDeltaTime * animSpeed * frameSpeed;
+					var deltaTime = Time.unscaledTime - lastAnimationSetTime;
+					if (deltaTime > 0f && lastAnimationSetTime > 0f)
+					{
+						frameIndex += deltaTime * animSpeed * frameSpeed;
+					}
 				}
 			}
-
-			frameInRow = Mathf.FloorToInt (frameIndex)+1;
+			
+			lastAnimationSetTime = Time.unscaledTime;
+			
+			int currentRow = 1;
+			int frameInRow = Mathf.FloorToInt (frameIndex)+1;
 			while (frameInRow > numCols)
 			{
 				frameInRow -= numCols;
@@ -814,8 +820,16 @@ namespace AC
 		#if UNITY_EDITOR
 
 		private bool showExtra;
-
+		public enum IncludeSize { No, Always, OnlyIfSoftware };
+		
+		
 		public void ShowGUI (bool includeSize, bool includeAlwaysAnimate = true, string _label = "Texture:", CursorRendering cursorRendering = CursorRendering.Software, string apiPrefix = "", string tooltip = "")
+		{
+			ShowGUI(includeSize ? IncludeSize.OnlyIfSoftware : IncludeSize.No, includeAlwaysAnimate, _label, cursorRendering, apiPrefix, tooltip);
+		}
+		
+
+		public void ShowGUI (IncludeSize includeSize, bool includeAlwaysAnimate = true, string _label = "Texture:", CursorRendering cursorRendering = CursorRendering.Software, string apiPrefix = "", string tooltip = "")
 		{
 			EditorGUILayout.BeginHorizontal ();
 			EditorGUILayout.LabelField (new GUIContent (_label, tooltip), GUILayout.Width (145));
@@ -824,7 +838,7 @@ namespace AC
 
 			if (texture == null) return;
 
-			if (includeSize)
+			if (includeSize == IncludeSize.OnlyIfSoftware)
 			{
 				if (cursorRendering == CursorRendering.Software)
 				{
@@ -838,6 +852,10 @@ namespace AC
 					clickOffset = CustomGUILayout.Vector2Field (string.Empty, clickOffset, string.IsNullOrEmpty (apiPrefix) ? string.Empty : (apiPrefix + ".clickOffset"));
 					EditorGUILayout.EndHorizontal ();
 				}
+			}
+			else if (includeSize == IncludeSize.Always)
+			{
+				size = CustomGUILayout.FloatField ("Size:", size, string.IsNullOrEmpty (apiPrefix) ? string.Empty : (apiPrefix + ".size"));
 			}
 
 			#if ALLOW_MOVIETEXTURE

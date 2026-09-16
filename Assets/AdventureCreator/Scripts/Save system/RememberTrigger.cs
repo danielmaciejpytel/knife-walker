@@ -39,6 +39,8 @@ namespace AC
 		{
 			if (isActiveAndEnabled && Trigger)
 			{
+				PreventStartStateIfPersistent();
+				
 				if (startState == AC_OnOff.On)
 				{
 					Trigger.TurnOn ();

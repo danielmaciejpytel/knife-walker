@@ -30,6 +30,7 @@ namespace AC
 		public int sceneNameParameterID = -1;
 		public bool assignScreenOverlay;
 		public bool onlyPreload = false;
+		public bool bypassLoadingScreen = false;
 
 		public bool relativePosition = false;
 		public Marker relativeMarker;
@@ -70,6 +71,8 @@ namespace AC
 			{
 				case ChooseSceneBy.Name:
 					string runtimeSceneName = (chooseSceneBy == ChooseSceneBy.Name) ? sceneName : KickStarter.sceneChanger.IndexToName (sceneNumber);
+					runtimeSceneName = AdvGame.ConvertTokens (runtimeSceneName, Options.GetLanguage ());
+
 					if (string.IsNullOrEmpty (runtimeSceneName)) return 0f;
 
 					if (onlyPreload)
@@ -94,7 +97,7 @@ namespace AC
 						KickStarter.sceneChanger.SetRelativePosition (runtimeRelativeMarker);
 					}
 
-					KickStarter.sceneChanger.ChangeScene (runtimeSceneName, true, forceReload, assignScreenOverlay);
+					KickStarter.sceneChanger.ChangeScene (runtimeSceneName, true, forceReload, assignScreenOverlay, bypassLoadingScreen);
 					break;
 
 				case ChooseSceneBy.Number:
@@ -124,7 +127,7 @@ namespace AC
 						KickStarter.sceneChanger.SetRelativePosition (runtimeRelativeMarker);
 					}
 
-					KickStarter.sceneChanger.ChangeScene (runtimeSceneIndex, true, forceReload, assignScreenOverlay);
+					KickStarter.sceneChanger.ChangeScene (runtimeSceneIndex, true, forceReload, assignScreenOverlay, bypassLoadingScreen);
 					break;
 			}
 
@@ -164,6 +167,10 @@ namespace AC
 			else
 			{
 				forceReload = EditorGUILayout.ToggleLeft ("Reload even if scene is already open?", forceReload);
+				if (KickStarter.settingsManager.useLoadingScreen)
+				{
+					bypassLoadingScreen = EditorGUILayout.ToggleLeft ("Bypass loading screen?", bypassLoadingScreen);
+				}
 				relativePosition = EditorGUILayout.ToggleLeft ("Position Player relative to Marker?", relativePosition);
 				if (relativePosition)
 				{

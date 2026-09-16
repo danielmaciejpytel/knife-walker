@@ -42,6 +42,7 @@ namespace AC
 
 		public string stringValue;
 		public bool checkCase = true;
+		public StringCondition stringCondition;
 
 		public Vector3 vector3Value;
 		public VectorCondition vectorCondition = VectorCondition.EqualTo;
@@ -75,44 +76,44 @@ namespace AC
 		public override string Description { get { return "Queries the value of both Global and Local Variables declared in the Variables Manager. Variables can be compared with a fixed value, or with the values of other Variables."; }}
 
 
-		public override void AssignValues (List<ActionParameter> parameters)
+		public override void AssignValues(List<ActionParameter> parameters)
 		{
-			intValue = AssignInteger (parameters, checkParameterID, intValue);
-			boolValue = AssignBoolean (parameters, checkParameterID, boolValue);
-			floatValue = AssignFloat (parameters, checkParameterID, floatValue);
-			vector3Value = AssignVector3 (parameters, checkParameterID, vector3Value);
-			stringValue = AssignString (parameters, checkParameterID, stringValue);
-			runtimeGameObjectValue = AssignFile (parameters, checkParameterID, intValue, gameObjectValue);
-			runtimeUnityObjectValue = AssignObject <Object> (parameters, checkParameterID, unityObjectValue);
+			intValue = AssignInteger(parameters, checkParameterID, intValue);
+			boolValue = AssignBoolean(parameters, checkParameterID, boolValue);
+			floatValue = AssignFloat(parameters, checkParameterID, floatValue);
+			vector3Value = AssignVector3(parameters, checkParameterID, vector3Value);
+			stringValue = AssignString(parameters, checkParameterID, stringValue);
+			runtimeGameObjectValue = AssignFile(parameters, checkParameterID, intValue, gameObjectValue);
+			runtimeUnityObjectValue = AssignObject<Object>(parameters, checkParameterID, unityObjectValue);
 
 			runtimeVariable = null;
 			switch (location)
 			{
 				case VariableLocation.Global:
-					variableID = AssignVariableID (parameters, parameterID, variableID);
-					runtimeVariable = GlobalVariables.GetVariable (variableID, true);
+					variableID = AssignVariableID(parameters, parameterID, variableID);
+					runtimeVariable = GlobalVariables.GetVariable(variableID, true);
 					break;
 
 				case VariableLocation.Local:
 					if (!isAssetFile)
 					{
-						variableID = AssignVariableID (parameters, parameterID, variableID);
-						runtimeVariable = LocalVariables.GetVariable (variableID, localVariables);
+						variableID = AssignVariableID(parameters, parameterID, variableID);
+						runtimeVariable = LocalVariables.GetVariable(variableID, localVariables);
 					}
 					break;
 
 				case VariableLocation.Component:
-					Variables runtimeVariables = AssignFile <Variables> (variablesConstantID, variables);
+					Variables runtimeVariables = AssignFile<Variables>(variablesConstantID, variables);
 					if (runtimeVariables != null)
 					{
-						runtimeVariable = runtimeVariables.GetVariable (variableID);
+						runtimeVariable = runtimeVariables.GetVariable(variableID);
 					}
-					runtimeVariable = AssignVariable (parameters, parameterID, runtimeVariable);
+					runtimeVariable = AssignVariable(parameters, parameterID, runtimeVariable);
 
-					runtimeVariables = AssignVariablesComponent (parameters, parameterID, runtimeVariables);
-					if (runtimeVariables && parameterID >= 0 && GetParameterWithID (parameters, parameterID) != null && GetParameterWithID (parameters, parameterID).parameterType == ParameterType.GameObject)
+					runtimeVariables = AssignVariablesComponent(parameters, parameterID, runtimeVariables);
+					if (runtimeVariables && parameterID >= 0 && GetParameterWithID(parameters, parameterID) != null && GetParameterWithID(parameters, parameterID).parameterType == ParameterType.GameObject)
 					{
-						runtimeVariable = runtimeVariables.GetVariable (variableID);
+						runtimeVariable = runtimeVariables.GetVariable(variableID);
 					}
 					break;
 			}
@@ -121,27 +122,38 @@ namespace AC
 			switch (getVarMethod)
 			{
 				case GetVarMethod.GlobalVariable:
-					compareVariableID = AssignVariableID (parameters, checkParameterID, compareVariableID);
-					runtimeCompareVariable = GlobalVariables.GetVariable (compareVariableID, true);
+					compareVariableID = AssignVariableID(parameters, checkParameterID, compareVariableID);
+					runtimeCompareVariable = GlobalVariables.GetVariable(compareVariableID, true);
 					break;
 
 				case GetVarMethod.LocalVariable:
-					compareVariableID = AssignVariableID (parameters, checkParameterID, compareVariableID);
-					runtimeCompareVariable = LocalVariables.GetVariable (compareVariableID, localVariables);
+					compareVariableID = AssignVariableID(parameters, checkParameterID, compareVariableID);
+					runtimeCompareVariable = LocalVariables.GetVariable(compareVariableID, localVariables);
 					break;
 
 				case GetVarMethod.ComponentVariable:
-					Variables runtimeCompareVariables = AssignFile <Variables> (compareVariablesConstantID, compareVariables);
+					Variables runtimeCompareVariables = AssignFile<Variables>(compareVariablesConstantID, compareVariables);
 					if (runtimeCompareVariables != null)
 					{
-						runtimeCompareVariable = runtimeCompareVariables.GetVariable (compareVariableID);
+						runtimeCompareVariable = runtimeCompareVariables.GetVariable(compareVariableID);
 					}
-					runtimeCompareVariable = AssignVariable (parameters, checkParameterID, runtimeCompareVariable);
+					runtimeCompareVariable = AssignVariable(parameters, checkParameterID, runtimeCompareVariable);
 					break;
 
 				default:
 					break;
 			}
+		}
+		
+
+		public override void Upgrade ()
+		{
+			if (boolCondition == BoolCondition.NotEqualTo)
+			{
+				stringCondition = StringCondition.NotEqualTo;
+				boolCondition = BoolCondition.EqualTo;
+			}
+			base.Upgrade();
 		}
 
 
@@ -291,13 +303,16 @@ namespace AC
 					compareValue = compareValue.ToLower ();
 				}
 
-				switch (boolCondition)
+				switch (stringCondition)
 				{
-					case BoolCondition.EqualTo:
-						return (fieldValue == compareValue);
+					case StringCondition.EqualTo:
+						return fieldValue == compareValue;
 
-					case BoolCondition.NotEqualTo:
-						return (fieldValue != compareValue);
+					case StringCondition.NotEqualTo:
+						return fieldValue != compareValue;
+
+					case StringCondition.Contains:
+						return fieldValue.Contains(compareValue);
 
 					default:
 						break;
@@ -587,7 +602,7 @@ namespace AC
 					break;
 
 				case VariableType.String:
-					boolCondition = (BoolCondition) EditorGUILayout.EnumPopup ("Condition:", boolCondition);
+					stringCondition = (StringCondition) EditorGUILayout.EnumPopup ("Condition:", stringCondition);
 					if (getVarMethod == GetVarMethod.EnteredValue)
 					{
 						TextField ("String:", ref stringValue, parameters, ref checkParameterID);
@@ -704,7 +719,7 @@ namespace AC
 								break;
 
 							case VariableType.String:
-								labelAdd += " " + boolCondition.ToString () + " " + stringValue;
+								labelAdd += " " + stringCondition.ToString () + " " + stringValue;
 								break;
 
 							case VariableType.PopUp:

@@ -65,6 +65,11 @@ namespace AC
 				optionID = ShowOptionGUI (linkedConversation.options, optionID);
 				newLabel = TextField ("New label text:", newLabel);
 			}
+			else if (constantID != 0)
+			{
+				optionID = EditorGUILayout.IntField ("Option ID:", optionID);
+				newLabel = TextField ("New label text:", newLabel);
+			}
 		}
 
 

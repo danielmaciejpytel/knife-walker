@@ -94,6 +94,7 @@ namespace AC
 
 		private Vector2 positionOffset;
 		private int needsOneFrameWakeUp;
+		private bool canShowLockedWarning = true;
 
 		#if TextMeshProIsPresent
 		/** If True, Elements in Unity UI-based Menus will use Text Mesh Pro equivalents to the standard UI components */
@@ -155,6 +156,9 @@ namespace AC
 		public float panDistance = 0.5f;
 		/** The transition duration, in seconds */
 		public float fadeSpeed = 0f;
+		
+		private float defaultFadeDuration;
+		
 		/** The zoom alignment, if transitionType = MenuTransitio.Zoom */
 		public TextAnchor zoomAnchor = TextAnchor.MiddleCenter;
 		/** If True, then MenuElement subclasses will also re-size during zoom transitions */
@@ -172,7 +176,7 @@ namespace AC
 		public bool deleteUIWhenTurnOff = false;
 
 		/** The Speech instance tied to the Menu, if a duplicate was made specifically for it */
-		public Speech speech;
+		public Speech speech { get; set; }
 
 		// Interaction menus
 		private InvInstance forInvInstance;
@@ -342,6 +346,7 @@ namespace AC
 			sizeType = _menu.sizeType;
 			orientation = _menu.orientation;
 			fadeSpeed = _menu.fadeSpeed;
+			defaultFadeDuration = fadeSpeed;
 			transitionType = _menu.transitionType;
 			panDirection = _menu.panDirection;
 			panMovement = _menu.panMovement;
@@ -595,6 +600,20 @@ namespace AC
 					}
 				}
 			}
+		}
+		
+		
+		private float GetClipDuration(string clipName)
+		{
+			var ac = canvasAnimator.runtimeAnimatorController;
+			foreach (AnimationClip clip in ac.animationClips)
+			{
+				if (clip.name == clipName)
+				{
+					return clip.length;
+				}
+			}
+			return defaultFadeDuration;
 		}
 
 
@@ -871,7 +890,15 @@ namespace AC
 				uiTransitionType = (UITransition) CustomGUILayout.EnumPopup ("Transition type:", uiTransitionType, apiPrefix + ".uiTransitionType", "The way the menu transitions");
 				if (uiTransitionType != UITransition.None)
 				{
-					fadeSpeed = CustomGUILayout.Slider ("Transition time (s):", fadeSpeed, 0f, 5f, apiPrefix + ".fadeSpeed", "The transition duration, in seconds");
+					if (uiTransitionType == UITransition.CustomAnimationStates)
+					{
+						fadeSpeed = CustomGUILayout.Slider ("Transition time (default):", fadeSpeed, 0f, 5f, apiPrefix + ".fadeSpeed", "The transition duration, in seconds, used if the animation state is missing");
+					}
+					else
+					{
+						fadeSpeed = CustomGUILayout.Slider ("Transition time (s):", fadeSpeed, 0f, 5f, apiPrefix + ".fadeSpeed", "The transition duration, in seconds");
+					}
+					
 					if (uiTransitionType == UITransition.CanvasGroupFade)
 					{
 						TransitionAnimGUI (apiPrefix);
@@ -917,6 +944,8 @@ namespace AC
 					{
 						#if AddressableIsPresent
 						canvasAssetKey = CustomGUILayout.DelayedTextField ("Canvas asset key:", canvasAssetKey, apiPrefix + ".canvasAssetKey", "The Addressable asset key that reference the menu's linked Canvas prefab");
+						#else
+						EditorGUILayout.HelpBox("UI prefabs are set to use Addressables, but no Addressables package was found.", MessageType.Warning);
 						#endif
 					}
 					else
@@ -1081,7 +1110,7 @@ namespace AC
 		 * <summary>Checks if the Menu makes reference to a particular GameObject</summary>
 		 * <param name = "gameObject">The GameObject to check for</param>
 		 * <param name = "id">The GameObject's associated ConstantID value</param>
-		 * <returns>True if the Menu references the GameObject</param>
+		 * <returns>True if the Menu references the GameObject</returns>
 		 */
 		public bool ReferencesObjectOrID (GameObject gameObject, int id)
 		{
@@ -1098,7 +1127,7 @@ namespace AC
 		/**
 		 * <summary>Checks if the Menu makes reference to a particular ActionList asset</summary>
 		 * <param name = "actionListAsset">The ActionList to check for</param>
-		 * <returns>True if the Menu references the ActionList</param>
+		 * <returns>True if the Menu references the ActionList</returns>
 		 */
 		public bool ReferencesAsset (ActionListAsset actionListAsset)
 		{
@@ -1606,7 +1635,7 @@ namespace AC
 			bool doRecalc = false;
 			if (!IsOff ())
 			{
-				foreach (MenuElement element in visibleElements)
+				foreach (MenuElement element in elements)
 				{
 					if (element is MenuDialogList)
 					{
@@ -1779,7 +1808,7 @@ namespace AC
 
 		/**
 		 * <summary>Checks if the Menu is currently enabled.</summary>
-		 * <returns>True if the Menu is currently enabled.</return>
+		 * <returns>True if the Menu is currently enabled.</returns>
 		 */
 		public bool IsEnabled ()
 		{
@@ -1980,6 +2009,11 @@ namespace AC
 
 				LoadUnityUI ();
 			}
+			
+			if (IsUnityUI() && uiTransitionType == UITransition.CustomAnimationStates)
+			{
+				fadeSpeed = GetClipDuration("On");
+			}
 
 			gameStateWhenTurnedOn = KickStarter.stateHandler.gameState;
 			KickStarter.playerMenus.UpdateMenuPosition (this, KickStarter.playerInput.GetInvertedMouse (), true);
@@ -1993,9 +2027,17 @@ namespace AC
 			// Setting selected_slot to -2 will cause PlayerInput's selected_option to reset
 			if (isLocked)
 			{
-				#if UNITY_EDITOR
-				ACDebug.Log ("Cannot turn on menu " + title + " as it is locked.");
-				#endif
+				if (canShowLockedWarning)
+				{
+					#if UNITY_EDITOR
+					ACDebug.Log ("Cannot turn on menu " + title + " as it is locked.");
+					#endif
+
+					if (appearType != AppearType.Manual && appearType != AppearType.OnInputKey)
+					{
+						canShowLockedWarning = false;
+					}
+				}
 			}
 			else if (!isEnabled || (isFading && fadeType == FadeType.fadeOut))
 			{
@@ -2024,6 +2066,7 @@ namespace AC
 							SetCentre (new Vector2 (KickStarter.playerInput.GetInvertedMouse ().x, ACScreen.height + 1f - KickStarter.playerInput.GetInvertedMouse ().y));
 						}
 					}
+					canShowLockedWarning = true;
 				}
 
 				MenuSystem.OnMenuEnable (this);
@@ -2064,7 +2107,7 @@ namespace AC
 					fadeType = FadeType.fadeIn;
 					fadeStartTime = Time.realtimeSinceStartup - (transitionProgress * fadeSpeed);
 				}
-				else
+				else if (isEnabled)
 				{
 					transitionProgress = 1f;
 					isEnabled = true;
@@ -2098,7 +2141,13 @@ namespace AC
 			{
 				return false;
 			}
-
+			
+			if (IsUnityUI() && uiTransitionType == UITransition.CustomAnimationStates)
+			{
+				fadeSpeed = GetClipDuration("Off");
+			}
+			
+			canShowLockedWarning = true;
 			awaitingAddressable = 0;
 
 			if (KickStarter.sceneChanger.IsLoading ())
@@ -2196,6 +2245,8 @@ namespace AC
 				ClearSpeechText ();
 
 				KickStarter.playerMenus.UpdatePauseMenusRecord ();
+
+				canShowLockedWarning = true;
 			}
 		}
 
@@ -2321,7 +2372,9 @@ namespace AC
 					case UITransition.CanvasGroupFade:
 						if (uiTransitionType == UITransition.CanvasGroupFade && canvasGroup && fadeSpeed > 0f)
 						{
-							canvasGroup.alpha = 1f - GetFadeProgress ();
+							var progress = GetFadeProgress();
+							progress = AdvGame.Remap(progress, 0.02f, 1f, 0f, 1f);
+							canvasGroup.alpha = 1f - progress;
 						}
 						break;
 
@@ -3201,7 +3254,7 @@ namespace AC
 
 		/**
 		 * <summary>Checks if the Menu should be automatically turned off when loading a save game, instead of loaded.  This is only True if the Menu is manually-controlled and contains a SavesList element.</summary>
-		 * <returns>True if the Menu should be automatically turned off when loading a save game, instead of loaded.</summary>
+		 * <returns>True if the Menu should be automatically turned off when loading a save game, instead of loaded.</returns>
 		 */
 		public bool ShouldTurnOffWhenLoading ()
 		{

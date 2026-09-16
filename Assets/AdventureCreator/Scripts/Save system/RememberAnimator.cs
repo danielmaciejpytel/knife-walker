@@ -48,7 +48,7 @@ namespace AC
 #if UNITY_2022_3_OR_NEWER
 			if (Animator) animatorToSave.keepAnimatorStateOnDisable = retainParametersWhenDisabled;
 #else
-			if (Animator) animatorToSave.keepAnimatorControllerStateOnDisable = retainParametersWhenDisabled;
+			if (Animator) animatorToSave.keepAnimatorStateOnDisable = retainParametersWhenDisabled;
 #endif
 			base.Start ();
 		}
@@ -60,6 +60,8 @@ namespace AC
 
 		protected override void OnInitialiseScene ()
 		{
+			PreventStartStateIfPersistent();
+			
 			if (setDefaultParameterValues && isActiveAndEnabled && Animator)
 			{
 				for (int i=0; i<Animator.parameters.Length; i++)

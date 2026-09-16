@@ -27,6 +27,7 @@ namespace AC
 
 		[SerializeField] protected string label;
 		[SerializeField] protected int id;
+		[SerializeField] protected Cutscene cutscene;
 		[SerializeField] protected ActionListAsset actionListAsset;
 		[SerializeField] protected int[] parameterIDs;
 		private ParameterReference[] parameterReferences;
@@ -52,11 +53,16 @@ namespace AC
 
 		protected void Run (object[] args)
 		{
-			if (actionListAsset == null) return;
+			if (cutscene == null && actionListAsset == null) return;
+
+			KickStarter.eventManager.Call_OnEventFire(this);
 
 			for (int i = 0; i < ParameterIDs.Length; i++)
 			{
-				ActionParameter parameter = actionListAsset.GetParameter (ParameterIDs[i]);
+				ActionParameter parameter = cutscene
+											? cutscene.GetParameter (ParameterIDs[i])
+											: actionListAsset.GetParameter (ParameterIDs[i]);
+
 				ParameterReference parameterReference = ParameterReferences[i];
 
 				if (parameter != null && parameter.parameterType == parameterReference.Type)
@@ -112,8 +118,8 @@ namespace AC
 						case ParameterType.GameObject:
 							if (arg is GameObject)
 							{
-								GameObject gameObjectVal = (GameObject) arg;
-								parameter.SetValue (gameObjectVal);
+								GameObject gameObjectVal = (GameObject)arg;
+								parameter.SetValue(gameObjectVal);
 							}
 							break;
 
@@ -123,7 +129,14 @@ namespace AC
 				}
 			}
 
-			actionListAsset.Interact ();
+			if (cutscene)
+			{
+				cutscene.Interact ();
+			}
+			else
+			{
+				actionListAsset.Interact ();
+			}
 		}
 
 
@@ -139,7 +152,8 @@ namespace AC
 
 		public int ID { get { return id; } }
 		public string Label { get { return !string.IsNullOrEmpty (label) ? label : EventName; } }
-		public ActionListAsset ActionListAsset { get { return actionListAsset; }}
+		public ActionListAsset ActionListAsset { get { return actionListAsset; } }
+		public Cutscene Cutscene { get { return cutscene; } }
 
 		public abstract string[] EditorNames { get; }
 		protected abstract string EventName { get; }
@@ -221,7 +235,7 @@ namespace AC
 		public virtual void AssignVariant (int variantIndex) { }
 
 
-		public void ShowGUI (bool isAssetFile)
+		public void ShowGUI (bool isAssetFile, ActionListSource source)
 		{
 			label = CustomGUILayout.TextField ("Label:", label);
 			CustomGUILayout.LabelField ("Event:", EventName);
@@ -232,9 +246,26 @@ namespace AC
 			}
 
 			CustomGUILayout.MultiLineLabelGUI ("Triggered:", ConditionHelp);
-			actionListAsset = ActionListAssetMenu.AssetGUI ("ActionList when trigger:", actionListAsset, EventName, string.Empty, "The ActionListAsset to run when the event is triggered", OnAutoCreateActionList);
 
-			if (actionListAsset)
+			switch (source)
+			{
+				case ActionListSource.AssetFile:
+					actionListAsset = ActionListAssetMenu.AssetGUI ("ActionList when trigger:", actionListAsset, EventName, string.Empty, "The ActionListAsset to run when the event is triggered", OnAutoCreateActionList);
+					cutscene = null;
+					break;
+				
+				default:
+					EditorGUILayout.BeginHorizontal ();
+					cutscene = CustomGUILayout.AutoCreateField <Cutscene> ("Cutscene when trigger:", cutscene, AutoCreateCutscene, string.Empty, "The Cutscene to run when the event is triggered");
+					if (cutscene && ActionListAssetMenu.showALEditor != null && GUILayout.Button (string.Empty, CustomStyles.IconNodes))
+					{
+						ActionListAssetMenu.showALEditor.Invoke (cutscene);
+					}
+					EditorGUILayout.EndHorizontal ();
+					break;
+			}
+
+			if ((source == ActionListSource.InScene && cutscene) || (source == ActionListSource.AssetFile && actionListAsset))
 			{
 				if (ParameterReferences.Length > 0)
 				{
@@ -242,10 +273,40 @@ namespace AC
 					CustomGUILayout.LabelField ("Parameters:");
 					for (int i = 0; i < ParameterReferences.Length; i++)
 					{
-						ParameterIDs[i] = AC.Action.ChooseParameterGUI (ParameterReferences[i].Label, actionListAsset.DefaultParameters, ParameterIDs[i], ParameterReferences[i].Type, -1, string.Empty, true);
+						if (source == ActionListSource.InScene)
+						{
+							ParameterIDs[i] = AC.Action.ChooseParameterGUI (ParameterReferences[i].Label, cutscene.parameters, ParameterIDs[i], ParameterReferences[i].Type, -1, string.Empty, true);
+						}
+						else
+						{
+							ParameterIDs[i] = AC.Action.ChooseParameterGUI (ParameterReferences[i].Label, actionListAsset.DefaultParameters, ParameterIDs[i], ParameterReferences[i].Type, -1, string.Empty, true);
+						}
 					}
 				}
 			}
+		}
+
+
+		private Cutscene AutoCreateCutscene ()
+		{
+			GameObject newObject = new GameObject (EventName);
+			Cutscene newCutscene = newObject.AddComponent <Cutscene>();
+			newCutscene.useParameters = true;
+
+			for (int i = 0; i < ParameterReferences.Length; i++)
+			{
+				ActionParameter newParameter = new ActionParameter (i);
+				newParameter.parameterType = ParameterReferences[i].Type;
+				newParameter.label = ParameterReferences[i].Label;
+				newParameter.description = "Set by the " + EventName + " event";
+
+				newCutscene.parameters.Add (newParameter);
+				ParameterIDs[i] = i;
+			}
+
+			EditorGUIUtility.PingObject (newCutscene.gameObject);
+			cutscene = newCutscene;
+			return newCutscene;
 		}
 
 
@@ -268,6 +329,8 @@ namespace AC
 				_actionListAsset.DefaultParameters.Add (newParameter);
 				ParameterIDs[i] = i;
 			}
+			
+			EditorUtility.SetDirty(_actionListAsset);
 		}
 
 		#endif

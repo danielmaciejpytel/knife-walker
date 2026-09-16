@@ -76,15 +76,8 @@ namespace AC
 		
 		private void CopyTimer (MenuTimer _element, bool ignoreUnityUI)
 		{
-			if (ignoreUnityUI)
-			{
-				uiSlider = null;
-			}
-			else
-			{
-				uiSlider = _element.uiSlider;
-			}
-
+			uiSlider = null;
+			
 			doInvert = _element.doInvert;
 			timerTexture = _element.timerTexture;
 			timerType = _element.timerType;
@@ -177,7 +170,7 @@ namespace AC
 			}
 			doInvert = CustomGUILayout.Toggle ("Invert value?", doInvert, apiPrefix + ".doInvert", "If True, then the value will be inverted, and the timer will move in the opposite direction");
 
-			smoothingFactor = CustomGUILayout.Slider ("Value smoothing:", smoothingFactor, 0f, 1f, ".smoothingFactor", "The amount of smoothing to apply (0 = no smoothing)");
+			smoothingFactor = CustomGUILayout.Slider ("Value smoothing:", smoothingFactor, 0f, 1f, apiPrefix + ".smoothingFactor", "The amount of smoothing to apply (0 = no smoothing)");
 
 			if (source == MenuSource.AdventureCreator)
 			{
@@ -239,7 +232,7 @@ namespace AC
 			if (Application.isPlaying)
 			{
 				float newProgress = GetProgress ();
-				if (progress <= 0f && timerType == AC_TimerType.LoadingProgress)
+				if (newProgress <= 0f && timerType == AC_TimerType.LoadingProgress)
 				{
 					progress = 0f;
 				}

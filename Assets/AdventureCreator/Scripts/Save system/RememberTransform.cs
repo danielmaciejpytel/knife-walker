@@ -60,7 +60,7 @@ namespace AC
 		{
 			if (linkedPrefabID != 0)
 			{
-				int newID = GetInstanceID ();
+				int newID = UnityVersionHandler.GetInstanceID(this);
 				ConstantID[] idScripts = GetComponents <ConstantID>();
 				foreach (ConstantID idScript in idScripts)
 				{

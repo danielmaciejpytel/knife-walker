@@ -72,7 +72,19 @@ namespace AC
 			}
 			else
 			{
-				float newPosition = Mathf.Lerp (draggable.trackValue, _position, Time.deltaTime * _speed * 100f);
+				var currentPosition = draggable.trackValue;
+				if (Loops)
+				{
+					if (_position - currentPosition > 0.5f)
+					{
+						currentPosition += 1f;
+					}
+					else if (currentPosition - _position > 0.5f)
+					{
+						currentPosition -= 1f;
+					}
+				}
+				float newPosition = Mathf.Lerp (currentPosition, _position, Time.deltaTime * _speed * 100f);
 				SetPositionAlong (newPosition, draggable);
 			}
 		}
@@ -202,17 +214,17 @@ namespace AC
 
 			float result = startToPointAngle / startToEndAngle;
 
-			if (Loops)
+			if (!Loops && drag)
 			{
 				// Prevent turning a revolution when crossing over the maxangle
-				float currentPositionAlong = drag.GetPositionAlong ();
-				if ((currentPositionAlong - result) > 0.5f)
+				float currentPositionAlong = drag.GetPositionAlong();
+				if (currentPositionAlong > 0.99f && (result > 1f || result < 0f))
 				{
-					result += 1f;
+					result = 1f;
 				}
-				else if ((result - currentPositionAlong) > 0.5f)
+				else if (currentPositionAlong < 0.01f && (result > 1f || result < 0f))
 				{
-					result -= 1f;
+					result = 0f;
 				}
 			}
 

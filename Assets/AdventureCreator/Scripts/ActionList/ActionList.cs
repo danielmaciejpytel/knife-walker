@@ -1,7 +1,7 @@
 /*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2025
  *	
  *	"ActionList.cs"
  * 
@@ -240,10 +240,16 @@ namespace AC
 		}
 
 
-		/** Runs the Actions normally, from the beginning. */
-		public virtual void Interact ()
+		public void StopSkipping()
 		{
-			Interact (0, true);
+			isSkipping = false;
+		}
+
+
+		/** Runs the Actions normally, from the beginning. */
+		public virtual void Interact()
+		{
+			Interact(0, true);
 		}
 
 
@@ -404,7 +410,8 @@ namespace AC
 				if (!actions[i].isEnabled)
 				{
 					// Disabled, try next
-					ProcessAction (i + 1);
+					//ProcessAction (i + 1);
+					EndAction (actions[i]);
 				}
 				else
 				{
@@ -547,7 +554,7 @@ namespace AC
 		{
 			action.isRunning = false;
 
-			int endIndex = action.GetNextOutputIndex ();
+			int endIndex = action.isEnabled ? action.GetNextOutputIndex () : 0;
 			ActionEnd actionEnd = (endIndex < 0 || endIndex >= action.endings.Count) ? Action.GenerateStopActionEnd () : action.endings[endIndex];
 			
 			if (action.NumSockets <= 0)
@@ -610,11 +617,11 @@ namespace AC
 				case ResultAction.Skip:
 					if (doStackOverflowDelay)
 					{
-						StartCoroutine (DelayProcessAction (actionEnd.skipAction));
+						StartCoroutine(DelayProcessAction(actionEnd.skipAction));
 					}
 					else
 					{
-						ProcessAction (actionEnd.skipAction);
+						ProcessAction(actionEnd.skipAction);
 					}
 					break;
 
@@ -938,9 +945,7 @@ namespace AC
 		}
 
 
-		/**
-		 * <summary>Pauses the ActionList once it has finished running it's current Action.</summary>
-		 */
+		/** Pauses the ActionList once it has finished running it's current Action. */
 		public void Pause ()
 		{
 			resumeIndices.Clear ();
@@ -1520,7 +1525,7 @@ namespace AC
 							if (objectiveReferencerAction.ReferencesAsset (actionListAsset))
 							{
 								string actionLabel = (KickStarter.actionsManager != null) ? (" (" + KickStarter.actionsManager.GetActionTypeLabel (action) + ")") : "";
-								Debug.Log ("'" + actionListAsset.name + "' is referenced by Action #" + actions.IndexOf (action) + actionLabel + " in ActionList '" + gameObject.name + "' in scene '" + gameObject.scene.name + "'", this);
+								//Debug.Log ("'" + actionListAsset.name + "' is referenced by Action #" + actions.IndexOf (action) + actionLabel + " in ActionList '" + gameObject.name + "' in scene '" + gameObject.scene.name + "'", this);
 								foundReference = true;
 							}
 						}

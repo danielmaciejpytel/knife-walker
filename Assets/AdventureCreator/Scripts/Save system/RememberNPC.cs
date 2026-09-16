@@ -35,6 +35,8 @@ namespace AC
 
 		protected override void OnInitialiseScene ()
 		{
+			PreventStartStateIfPersistent();
+			
 			if (OwnHotspot != null &&
 				GetComponent <RememberHotspot>() == null)
 			{

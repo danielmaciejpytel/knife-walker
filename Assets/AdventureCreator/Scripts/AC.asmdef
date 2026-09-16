@@ -1,11 +1,15 @@
 {
     "name": "AC",
+    "rootNamespace": "",
     "references": [
         "Unity.Timeline",
         "Unity.Addressables",
         "Unity.ResourceManager",
         "Unity.Localization",
-        "Unity.TextMeshPro"
+        "Unity.TextMeshPro",
+        "Unity.RenderPipelines.Universal.Runtime",
+        "Unity.RenderPipelines.Universal.2D.Runtime",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -44,6 +48,16 @@
             "name": "com.unity.ugui",
             "expression": "2.0.0",
             "define": "UGUI2IsPresent"
+        },
+        {
+            "name": "com.unity.render-pipelines.universal",
+            "expression": "17.0.0",
+            "define": "URPIsPresent"
+        },
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "",
+            "define": "InputSystemIsPresent"
         }
     ],
     "noEngineReferences": false

@@ -99,14 +99,14 @@ namespace AC
 		 * <summary> Gets all Objective instances in the category marked as the 'sub-Objective category' for the Objective's current state</summary>
 		 * <returns>All Objective instances that match the given criteria</returns>
 		 */
-		public ObjectiveInstance[] GetSubObjectives ()
+		public ObjectiveInstance[] GetSubObjectives (ObjectiveDisplayType objectiveDisplayType = ObjectiveDisplayType.All)
 		{
 			int subCategoryID = CurrentState.LinkedCategoryID;
 			if (subCategoryID >= 0)
 			{
 				List<int> subCategoryIDList = new List<int> ();
 				subCategoryIDList.Add (subCategoryID);
-				return KickStarter.runtimeObjectives.GetObjectives (subCategoryIDList);
+				return KickStarter.runtimeObjectives.GetObjectives (subCategoryIDList, objectiveDisplayType);
 			}
 
 			return new ObjectiveInstance[0];
@@ -146,6 +146,24 @@ namespace AC
 		}
 
 
+		/** The order in which the Objective appears in the Editor */
+		public int EditorIndex => KickStarter.inventoryManager.objectives.IndexOf(linkedObjective);
+
+
+		/** The Objective's current texture */
+		public Texture2D Texture
+		{
+			get
+			{
+				if (CurrentState.texture)
+				{
+					return CurrentState.texture;
+				}
+				return linkedObjective.texture;
+			}
+		}
+
+
 		/** The ID number of the instance's current objective state */
 		public int CurrentStateID
 		{
@@ -175,6 +193,18 @@ namespace AC
 				ObjectiveState newState = linkedObjective.GetState (value);
 				if (newState != null)
 				{
+					if (CurrentState.stateType == ObjectiveStateType.Active &&
+						linkedObjective.onlySuccessiveActiveStates &&
+						newState.stateType == ObjectiveStateType.Active &&
+						!linkedObjective.IsSuccessive (CurrentStateID, value))
+					{
+						if (currentStateID != value)
+						{
+							ACDebug.Log ("Cannot update the state of active Objective " + linkedObjective.Title + " as its next state is above it in the States panel.");
+						}
+						return;
+					}
+				
 					int oldStateID = currentStateID;
 					currentStateID = value;
 

@@ -131,6 +131,7 @@ namespace AC
 				for (int i=0; i<uiSlots.Length; i++)
 				{
 					uiSlots[i] = new UISlot (_element.uiSlots[i]);
+					uiSlots[i].uiButton = null;
 				}
 			}
 
@@ -305,13 +306,18 @@ namespace AC
 			}
 
 			autoRunOption = CustomGUILayout.Toggle ("Run options when clicked?", autoRunOption, apiPrefix + ".autoRunOption");
-			markAlreadyChosen = CustomGUILayout.Toggle ("Mark options already used?", markAlreadyChosen, apiPrefix + ".markAlreadyChosen", "If True, then options that have already been clicked can be displayed in a different colour");
-			if (markAlreadyChosen)
+			
+			if (displayType == ConversationDisplayType.IconOnly && source == MenuSource.AdventureCreator) {}
+			else
 			{
-				alreadyChosenFontColour = CustomGUILayout.ColorField ("'Already chosen' colour:", alreadyChosenFontColour, apiPrefix + ".alreadyChosenFontColour", "The font colour for options already chosen");
-				alreadyChosenFontHighlightedColour = CustomGUILayout.ColorField ("'Already chosen' highlighted colour:", alreadyChosenFontHighlightedColour, apiPrefix + ".alreadyChosenFontHighlightedColour", "The font colour when the option is highlighted but has already been chosen");
+				markAlreadyChosen = CustomGUILayout.Toggle ("Mark options already used?", markAlreadyChosen, apiPrefix + ".markAlreadyChosen", "If True, then options that have already been clicked can be displayed in a different colour");
+				if (markAlreadyChosen)
+				{
+					alreadyChosenFontColour = CustomGUILayout.ColorField ("'Already chosen' colour:", alreadyChosenFontColour, apiPrefix + ".alreadyChosenFontColour", "The font colour for options already chosen");
+					alreadyChosenFontHighlightedColour = CustomGUILayout.ColorField ("'Already chosen' highlighted colour:", alreadyChosenFontHighlightedColour, apiPrefix + ".alreadyChosenFontHighlightedColour", "The font colour when the option is highlighted but has already been chosen");
+				}
 			}
-
+			
 			if (source != MenuSource.AdventureCreator)
 			{
 				CustomGUILayout.EndVertical ();
@@ -392,7 +398,7 @@ namespace AC
 		{
 			for (int i = 0; i < uiSlots.Length; i++)
 			{
-				if (uiSlots[i].uiButton && uiSlots[i].uiButton == gameObject)
+				if (uiSlots[i].uiButton && uiSlots[i].uiButton.gameObject == gameObject)
 				{
 					return i;
 				}
@@ -796,6 +802,12 @@ namespace AC
 		{
 			base.OnMenuTurnOn (menu);
 
+			AssignConversation ();
+		}
+
+
+		private void AssignConversation ()
+		{
 			Conversation oldConversation = linkedConversation;
 			linkedConversation = (overrideConversation) ? overrideConversation : KickStarter.playerInput.activeConversation;
 			if (linkedConversation)
@@ -901,6 +913,11 @@ namespace AC
 			set
 			{
 				overrideConversation = value;
+
+				if (parentMenu && parentMenu.IsOn ())
+				{
+					AssignConversation ();
+				}
 			}
 		}
 

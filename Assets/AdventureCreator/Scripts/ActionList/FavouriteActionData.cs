@@ -21,9 +21,9 @@ namespace AC
 
 		#region Constructors
 
-		public FavouriteActionData (Action action, int _id)
+		public FavouriteActionData (Action action, int _id, string _label)
 		{
-			Update (action);
+			Update (action, _label);
 			id = _id;
 		}
 
@@ -32,11 +32,12 @@ namespace AC
 
 		#region PublicFunctions
 
-		public void Update (Action action)
+		public void Update (Action action, string _label)
 		{
 			actionAsJson = JsonUtility.ToJson (action);
 			className = action.GetType ().ToString ();
-			label = action.Category.ToString () + ": " + action.Title;
+
+			label = (string.IsNullOrEmpty(_label)) ? (action.Category.ToString () + ": " + action.Title) : _label;
 
 			if (!string.IsNullOrEmpty (className) && className.StartsWith ("AC."))
 			{

@@ -910,9 +910,9 @@ namespace AC
 		}
 
 
-		public Color GetActionTypeColor (Action _action)
+		public Color GetActionTypeColor(Action _action)
 		{
-			int index = GetActionTypeIndex (_action);
+			int index = GetActionTypeIndex(_action);
 
 			if (index >= 0 && AllActions != null && index < AllActions.Count)
 			{
@@ -926,16 +926,7 @@ namespace AC
 
 		public void SetFavourite (Action action, int ID)
 		{
-			FavouriteActionData existingFavouriteActionData = GetFavouriteActionData (ID);
-			if (existingFavouriteActionData != null)
-			{
-				existingFavouriteActionData.Update (action);
-				return;
-			}
-
-			FavouriteActionData newFavouriteActionData = new FavouriteActionData (action, ID);
-			allFavouriteActionData.Add (newFavouriteActionData);
-			EditorUtility.SetDirty (this);
+			FavouriteActionNamer.Show(action, ID);//, GetFavouriteActionLabel (ID));
 		}
 
 
@@ -967,7 +958,7 @@ namespace AC
 		}
 
 
-		private FavouriteActionData GetFavouriteActionData (int ID)
+		public FavouriteActionData GetFavouriteActionData (int ID)
 		{
 			foreach (FavouriteActionData favouriteActionData in allFavouriteActionData)
 			{

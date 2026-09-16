@@ -361,7 +361,7 @@ namespace AC
 				CursorManager cursorManager = KickStarter.cursorManager;
 				if (cursorManager.inventoryHandling == InventoryHandling.ChangeCursor || cursorManager.inventoryHandling == InventoryHandling.ChangeCursorAndHotspotLabel)
 				{
-					cursorIcon.ShowGUI (true, true, "Cursor (optional):", cursorManager.cursorRendering, apiPrefix + ".cursorIcon", "A Cursor that, if assigned, will be used in place of the 'tex' Texture when the item is selected on the cursor");
+					cursorIcon.ShowGUI (CursorIconBase.IncludeSize.OnlyIfSoftware, true, "Cursor (optional):", cursorManager.cursorRendering, apiPrefix + ".cursorIcon", "A Cursor that, if assigned, will be used in place of the 'tex' Texture when the item is selected on the cursor");
 					CustomGUILayout.DrawUILine ();
 				}
 			}
@@ -760,7 +760,6 @@ namespace AC
 					newInvVars.Add (newInvVar);
 				}
 			}
-
 			vars = newInvVars;
 		}
 

@@ -14,8 +14,9 @@ namespace AC.Templates.FirstPersonPlayer
 		public CharacterController characterController;
 		public LayerMask standLayerMask;
 		private Player player;
+		private PlayerMoveLock standingMoveLock = PlayerMoveLock.Free;
 		
-		[Range (0.1f, 0.9f)] public float speedReduction = 0.6f;
+		[Range(0.1f, 0.9f)] public float speedReduction = 0.6f;
 
 		private bool isCrouching = false;
 		private float normalWalkSpeed;
@@ -104,6 +105,7 @@ namespace AC.Templates.FirstPersonPlayer
 
 				targetHeight = standingHeight * heightReduction;
 				targetCameraHeight = cameraStandingHeight * heightReduction;
+				standingMoveLock = player.runningLocked;
 
 				if (preventRunning)
 				{
@@ -132,7 +134,7 @@ namespace AC.Templates.FirstPersonPlayer
 
 				if (preventRunning)
 				{
-					player.runningLocked = PlayerMoveLock.Free;
+					player.runningLocked = standingMoveLock;
 				}
 
 				if (animator && !string.IsNullOrEmpty (isCrouchingBool))

@@ -1,7 +1,7 @@
 /*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2025
  *	
  *	"ActionConversation.cs"
  * 
@@ -54,9 +54,10 @@ namespace AC
 		public override string Title { get { return "Start conversation"; }}
 		public override string Description { get { return "Enters Conversation mode, and displays the available dialogue options in a specified conversation."; }}
 		public override int NumSockets { get { return numSockets; }}
+		public override bool RunNormallyWhenSkip => runtimeConversation && runtimeConversation.lastOption == -1;
 
 
-		public override void AssignParentList (ActionList actionList)
+		public override void AssignParentList(ActionList actionList)
 		{
 			parentActionList = actionList;
 
@@ -65,7 +66,7 @@ namespace AC
 				localVariables = KickStarter.localVariables;
 			}
 
-			base.AssignParentList (actionList);
+			base.AssignParentList(actionList);
 		}
 
 
@@ -73,7 +74,7 @@ namespace AC
 		{
 			runtimeConversation = AssignFile <Conversation> (parameters, parameterID, constantID, conversation);
 
-			if (!overrideOptions && setElement)
+			if (setElement)
 			{
 				string runtimeMenuName = AssignString (parameters, menuParameterID, menuName);
 				string runtimeContainerElementName = AssignString (parameters, elementParameterID, containerElementName);
@@ -108,38 +109,58 @@ namespace AC
 			if (runtimeConversation == null)
 			{
 				LogWarning ("Cannot start conversation - no Conversation assigned");
+				isRunning = false;
 				return 0f;
 			}
 
-			isRunning = false;
-
-			if (overrideOptions)
+			if (isRunning)
 			{
-				if (runtimeConversation.lastOption >= 0)
-				{
-					KickStarter.actionListManager.ignoreNextConversationSkip = true;
-					return 0f;
-				}
-				KickStarter.actionListManager.ignoreNextConversationSkip = false;
+				int _chosenOptionIndex = runtimeConversation.lastOption;
+				if (_chosenOptionIndex < 0) return defaultPauseTime;
+
+				isRunning = false;
+				return 0f;
 			}
 
-			if (!overrideOptions && setElement && runtimeDialogList)
+			if (parentActionList.IsSkipping)
+			{
+				parentActionList.StopSkipping();
+			}
+			else
+			{
+				runtimeConversation.lastOption = -1;
+			}
+
+			if (setElement && runtimeDialogList)
 			{
 				runtimeDialogList.OverrideConversation = runtimeConversation;
-				runtimeMenu.TurnOn ();
+
+				if (runtimeMenu.IsOn())
+				{
+					runtimeMenu.Recalculate();
+				}
+				else
+				{
+					runtimeMenu.TurnOn();
+				}
 			}
 
 			runtimeConversation.Interact (parentActionList, this);
-			
+
+			if (overrideOptions)
+			{
+				isRunning = true;
+				return defaultPauseTime;
+			}
+
 			return 0f;
 		}
 
 
 		public override void Skip ()
 		{
-			if (KickStarter.actionListManager.ignoreNextConversationSkip)
+			if (KickStarter.actionListManager.currentConversationActiveList != null && KickStarter.actionListManager.currentConversationActiveList.Action == this)
 			{
-				KickStarter.actionListManager.ignoreNextConversationSkip = false;
 				return;
 			}
 
@@ -153,9 +174,13 @@ namespace AC
 			{
 				int _chosenOptionIndex = runtimeConversation.lastOption;
 				
-				runtimeConversation.lastOption = -1;
 				if (overrideOptions && _chosenOptionIndex >= 0 && endings.Count > _chosenOptionIndex)
 				{
+					if (parentActionList && parentActionList.IsSkipping)
+					{
+						runtimeConversation.lastOption = -1;
+						KickStarter.actionListManager.currentConversationActiveList = null;
+					}
 					return _chosenOptionIndex;
 				}
 			}
@@ -217,14 +242,11 @@ namespace AC
 				}
 			}
 
-			if (!overrideOptions)
+			setElement = EditorGUILayout.Toggle ("Open in set element?", setElement);
+			if (setElement)
 			{
-				setElement = EditorGUILayout.Toggle ("Open in set element?", setElement);
-				if (setElement)
-				{
-					TextField ("Menu name:", ref menuName, parameters, ref menuParameterID);
-					TextField ("DialogList name:", ref containerElementName, parameters, ref elementParameterID);
-				}
+				TextField ("Menu name:", ref menuName, parameters, ref menuParameterID);
+				TextField ("DialogList name:", ref containerElementName, parameters, ref elementParameterID);
 			}
 
 			if (!overrideOptions && !KickStarter.settingsManager.allowGameplayDuringConversations)

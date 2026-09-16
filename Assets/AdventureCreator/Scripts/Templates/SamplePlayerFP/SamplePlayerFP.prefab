@@ -27,6 +27,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2986996740511513578}
   - {fileID: 1553022437247176369}
@@ -104,6 +105,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4398483095773480}
   m_RootOrder: 1
@@ -249,6 +251,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 1.5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4499339294278216}
   m_Father: {fileID: 4398483095773480}
@@ -272,7 +275,7 @@ MonoBehaviour:
   focalDistance: 10
   updateWhilePaused: 0
   is2D: 0
-  sensitivity: {x: 3, y: 3}
+  sensitivity: {x: 1.3, y: 1.3}
   minY: -80
   maxY: 80
   allowMouseWheelZooming: 0
@@ -288,7 +291,7 @@ MonoBehaviour:
   headBobLerpSpeed: 5
 --- !u!95 &95865193136109890
 Animator:
-  serializedVersion: 3
+  serializedVersion: 5
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -301,10 +304,12 @@ Animator:
   m_UpdateMode: 0
   m_ApplyRootMotion: 0
   m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
   m_WarningMessage: 
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
-  m_KeepAnimatorControllerStateOnDisable: 0
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
 --- !u!114 &114625763805002742
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -364,6 +369,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4213024432648124}
   - {fileID: 4397990049508118}
@@ -506,8 +512,8 @@ MonoBehaviour:
   reverseSpeedFactor: 1
   canRunInReverse: 1
   turnSpeed: 2.7
-  acceleration: 2.5
-  deceleration: 7
+  acceleration: 100
+  deceleration: 4
   turnBeforeWalking: 0
   runDistanceThreshold: 1
   antiGlideMode: 0
@@ -520,12 +526,14 @@ MonoBehaviour:
   simulatedVerticalSpeed: 0
   doWallReduction: 0
   wallLayer: Default
+  wallLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
   wallDistance: 0.5
   wallReductionOnlyParameter: 1
   walkSound: {fileID: 0}
   runSound: {fileID: 0}
   textScrollClip: {fileID: 0}
-  soundChild: {fileID: 114347335592662176}
   speechAudioSource: {fileID: 0}
   headIKTurnFactor: 1
   bodyIKTurnFactor: 0
@@ -653,6 +661,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0.77, z: 1.201}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4398483095773480}
   m_RootOrder: 3
@@ -727,6 +736,7 @@ Transform:
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4398483095773480}
   m_RootOrder: 2
@@ -869,6 +879,7 @@ Transform:
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: -0.2, y: -0.27999997, z: 0.418}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4499339294278216}
   m_RootOrder: 1
@@ -899,6 +910,7 @@ Transform:
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0.2, y: -0.27999997, z: 0.418}
   m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 4499339294278216}
   m_RootOrder: 0

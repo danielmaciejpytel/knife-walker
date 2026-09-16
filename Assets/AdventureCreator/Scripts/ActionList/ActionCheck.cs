@@ -71,24 +71,26 @@ namespace AC
 		{
 			if (skipActionTrue != -99 && endings.Count == 0)
 			{
-				ActionEnd actionEndTrue = new ActionEnd ();
+				ActionEnd actionEndTrue = new ActionEnd();
 				actionEndTrue.resultAction = resultActionTrue;
 				actionEndTrue.skipAction = skipActionTrue;
 				actionEndTrue.skipActionActual = skipActionTrueActual;
 				actionEndTrue.linkedCutscene = linkedCutsceneTrue;
 				actionEndTrue.linkedAsset = linkedAssetTrue;
-				endings.Add (actionEndTrue);
+				endings.Add(actionEndTrue);
 
-				ActionEnd actionEndFail = new ActionEnd ();
+				ActionEnd actionEndFail = new ActionEnd();
 				actionEndFail.resultAction = resultActionFail;
 				actionEndFail.skipAction = skipActionFail;
 				actionEndFail.skipActionActual = skipActionFailActual;
 				actionEndFail.linkedCutscene = linkedCutsceneFail;
 				actionEndFail.linkedAsset = linkedAssetFail;
-				endings.Add (actionEndFail);
+				endings.Add(actionEndFail);
 
 				skipActionTrue = -99;
 			}
+
+			base.Upgrade();
 		}
 
 

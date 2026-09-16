@@ -46,6 +46,8 @@ namespace AC
 		public float positionFactor = 1f;
 		/** A factor for the arrow size */
 		public float scaleFactor = 1f;
+		/** A factor for the arrow stretch */
+		public float stretchFactor = 1f;
 
 		protected bool isOn = false;
 		
@@ -237,25 +239,25 @@ namespace AC
 
 		protected Rect GetUpRect (float scale = 0.05f)
 		{
-			return KickStarter.mainCamera.LimitMenuToAspect (AdvGame.GUIRect (0.5f, 0.1f * positionFactor, scale * 2f * scaleFactor, scale * scaleFactor));
+			return KickStarter.mainCamera.LimitMenuToAspect (AdvGame.GUIRect (0.5f, 0.1f * positionFactor, scale * stretchFactor * scaleFactor, scale * scaleFactor));
 		}
 
 
 		protected Rect GetDownRect (float scale = 0.05f)
 		{
-			return KickStarter.mainCamera.LimitMenuToAspect (AdvGame.GUIRect (0.5f, 1f - (0.1f * positionFactor), scale * 2f * scaleFactor, scale * scaleFactor));
+			return KickStarter.mainCamera.LimitMenuToAspect (AdvGame.GUIRect (0.5f, 1f - (0.1f * positionFactor), scale * stretchFactor * scaleFactor, scale * scaleFactor));
 		}
 
 
 		protected Rect GetLeftRect (float scale = 0.05f)
 		{
-			return KickStarter.mainCamera.LimitMenuToAspect (AdvGame.GUIRect (0.05f * positionFactor * 2f, 0.5f, scale * scaleFactor, scale * 2f * scaleFactor));
+			return KickStarter.mainCamera.LimitMenuToAspect (AdvGame.GUIRect (0.05f * positionFactor * 2f, 0.5f, scale * scaleFactor, scale * stretchFactor * scaleFactor));
 		}
 
 
 		protected Rect GetRightRect (float scale = 0.05f)
 		{
-			return KickStarter.mainCamera.LimitMenuToAspect (AdvGame.GUIRect (1f - (0.05f * positionFactor * 2f), 0.5f, scale * scaleFactor, scale * 2f * scaleFactor));
+			return KickStarter.mainCamera.LimitMenuToAspect (AdvGame.GUIRect (1f - (0.05f * positionFactor * 2f), 0.5f, scale * scaleFactor, scale * stretchFactor * scaleFactor));
 		}
 
 		

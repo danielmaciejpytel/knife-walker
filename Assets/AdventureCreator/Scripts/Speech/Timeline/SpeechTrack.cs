@@ -102,12 +102,20 @@ namespace AC
 				clip.speaker = speaker;
 				clip.isPlayerLine = isPlayerLine;
 				clip.playerID = playerID;
-				clip.trackInstanceID = GetInstanceID ();
+#if UNITY_6000_5_OR_NEWER
+				clip.trackID = GetEntityId();
+#else
+				clip.trackID = UnityVersionHandler.GetInstanceID(this);
+#endif
 			}
 
 			ScriptPlayable<SpeechPlayableMixer> mixer = ScriptPlayable<SpeechPlayableMixer>.Create (graph);
 			mixer.SetInputCount (inputCount);
-			mixer.GetBehaviour ().trackInstanceID = GetInstanceID ();
+#if UNITY_6000_5_OR_NEWER
+			mixer.GetBehaviour ().trackID = GetEntityId();
+#else
+			mixer.GetBehaviour ().trackID = UnityVersionHandler.GetInstanceID(this);
+#endif
 			mixer.GetBehaviour ().playbackMode = playbackMode;
 			return mixer;
 	    }

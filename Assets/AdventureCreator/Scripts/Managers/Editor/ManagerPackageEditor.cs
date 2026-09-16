@@ -41,11 +41,15 @@ namespace AC
 			EditorUtility.SetDirty (_target);
 		}
 
-
+#if UNITY_6000_5_OR_NEWER
+		[OnOpenAsset(2)]
+		public static bool OnOpenAsset (EntityId entityId, int line) {
+			ManagerPackage managerPackage = EditorUtility.EntityIdToObject (entityId) as ManagerPackage;
+#else
 		[OnOpenAssetAttribute(2)]
-		public static bool OnOpenAsset (int instanceID, int line)
-		{
+		public static bool OnOpenAsset (int instanceID, int line) {
 			ManagerPackage managerPackage = EditorUtility.InstanceIDToObject (instanceID) as ManagerPackage;
+#endif
 			if (managerPackage)
 			{
 				Undo.RecordObject (AdvGame.GetReferences (), "Assign managers");

@@ -477,9 +477,13 @@ namespace AC
 
 		private void OnSwitchCamera (_Camera oldCamera, _Camera newCamera, float transitionTime)
 		{
-			if (newCamera == this && initialOnSwitch)
+			if (newCamera == this)
 			{
-				SetInitialDirection ();
+				if (initialOnSwitch)
+				{
+					SetInitialDirection ();
+				}
+				targetSpinTimer = targetSpinDelay;
 			}
 		}
 
@@ -514,6 +518,12 @@ namespace AC
 
 		private void DoUpdate ()
 		{
+			if (KickStarter.stateHandler && !KickStarter.stateHandler.CameraSystemIsEnabled)
+			{
+				lastFrameInput = Vector2.zero;
+				return;
+			}
+
 			lookAtInfluence = GetOverrideInfluence ();
 
 			Vector2 frameInput = Vector2.zero;
@@ -638,10 +648,10 @@ namespace AC
 					{
 						Vector3 ownDirection = transform.right;
 						ownDirection.y = 0f;
-						float dotProduct = Vector3.Dot (ownDirection, targetVelocity);
+						float dotProduct = Vector3.Dot (ownDirection, targetVelocity.normalized);
 						if (Time.deltaTime > 0f)
 						{
-							targetSpinAngle += dotProduct * targetSpinInfluence * 20f / Time.deltaTime;
+							targetSpinAngle += dotProduct * targetSpinInfluence * targetVelocity.magnitude * 30000f * Time.deltaTime;
 						}
 					}
 
@@ -1082,13 +1092,13 @@ namespace AC
 						(KickStarter.stateHandler.gameState == GameState.Cutscene && allowCutsceneControl) ||
 						(KickStarter.stateHandler.gameState == GameState.DialogOptions && allowConversationControl))
 					{
-						zoomAmount -= Input.GetAxis (zoomAxis) * zoomSpeed * Time.deltaTime;// * 50f;
+						zoomAmount -= KickStarter.playerInput.InputGetAxis (zoomAxis) * zoomSpeed * Time.deltaTime;// * 50f;
 						zoomAmount = Mathf.Clamp (zoomAmount, zoomLimit, 1f);
 					}
 					break;
 
 				case ZoomMethod.ButtonControlsFOV:
-					if (Input.GetButton (zoomAxis) &&
+					if (KickStarter.playerInput.InputGetButton (zoomAxis) &&
 						(KickStarter.stateHandler.gameState == GameState.Normal ||
 						(KickStarter.stateHandler.gameState == GameState.Cutscene && allowCutsceneControl) ||
 						(KickStarter.stateHandler.gameState == GameState.DialogOptions && allowConversationControl)))
@@ -1207,9 +1217,8 @@ namespace AC
 							}
 						}
 
-						float inputX = (inputVector.x > 0f) ? Mathf.Min (inputVector.x, maxInput.x * DeltaTime) : Mathf.Max (inputVector.x, -maxInput.x * DeltaTime);
-						float inputY = (inputVector.y > 0f) ? Mathf.Min (inputVector.y, maxInput.y * DeltaTime) : Mathf.Max (inputVector.y, -maxInput.y * DeltaTime);
-
+						float inputX = (inputVector.x > 0f) ? Mathf.Min (inputVector.x, maxInput.x) : Mathf.Max (inputVector.x, -maxInput.x);
+						float inputY = (inputVector.y > 0f) ? Mathf.Min (inputVector.y, maxInput.y) : Mathf.Max (inputVector.y, -maxInput.y);
 						if (inputSmoothing.x > 0f)
 						{
 							inputX = Mathf.Lerp (lastFrameInput.x, inputX, DeltaTime * inputSmoothing.x);

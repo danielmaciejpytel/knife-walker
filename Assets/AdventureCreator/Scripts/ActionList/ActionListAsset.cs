@@ -401,7 +401,6 @@ namespace AC
 			}
 
 			EditorUtility.SetDirty (newAsset);
-			
 			AssetDatabase.SaveAssets ();
 			
 			return newAsset;
@@ -493,8 +492,8 @@ namespace AC
 
 					AssetDatabase.AddObjectToAsset (action, asset);
 					AssetDatabase.ImportAsset (AssetDatabase.GetAssetPath (action));
-					AssetDatabase.SaveAssets ();
-					AssetDatabase.Refresh ();
+					//AssetDatabase.SaveAssets ();
+					//AssetDatabase.Refresh ();
 				}
 			}
 
@@ -1181,6 +1180,7 @@ namespace AC
 			}
 
 			if (showALAEditor == null) showALAEditor = _showALAEditor;
+			else if (_showALAEditor == null) _showALAEditor = showALAEditor;
 
 			if (showALAEditor != null && actionListAsset && GUILayout.Button (string.Empty, CustomStyles.IconNodes, GUILayout.Height (21)))
 			{

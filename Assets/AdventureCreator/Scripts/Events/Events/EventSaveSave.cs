@@ -4,6 +4,7 @@ using UnityEngine;
 namespace AC
 {
 
+	[Serializable]
 	public class EventSaveSave : EventBase
 	{
 

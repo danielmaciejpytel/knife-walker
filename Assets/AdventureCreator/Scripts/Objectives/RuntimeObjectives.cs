@@ -369,18 +369,20 @@ namespace AC
 		 * <param name = "categoryIDs">If non-null, a list of category IDs that must include the Objective's own category ID for it to be returned</param>
 		 * <returns>All active Objective instances</returns>
 		 */
-		public ObjectiveInstance[] GetObjectives (List<int> categoryIDs = null)
+		public ObjectiveInstance[] GetObjectives (List<int> categoryIDs = null, ObjectiveDisplayType objectiveDisplayType = ObjectiveDisplayType.All)
 		{
 			List<ObjectiveInstance> completedObjectives = new List <ObjectiveInstance>();
 			foreach (ObjectiveInstance objectiveInstance in playerObjectiveInstances)
 			{
 				if (categoryIDs != null && !categoryIDs.Contains (objectiveInstance.Objective.binID)) continue;
+				if (!objectiveInstance.CurrentState.DisplayTypeMatches (objectiveDisplayType)) continue;
 				completedObjectives.Add (objectiveInstance);
 			}
 
 			foreach (ObjectiveInstance objectiveInstance in globalObjectiveInstances)
 			{
 				if (categoryIDs != null && !categoryIDs.Contains (objectiveInstance.Objective.binID)) continue;
+				if (!objectiveInstance.CurrentState.DisplayTypeMatches (objectiveDisplayType)) continue;
 				completedObjectives.Add (objectiveInstance);
 			}
 			return completedObjectives.ToArray ();
@@ -454,12 +456,12 @@ namespace AC
 		 * <param name = "objectiveID">The ID of the Objective</param>
 		 * <returns>All Objective instances that match the given criteria</returns>
 		 */
-		public ObjectiveInstance[] GetSubObjectives (int objectiveID)
+		public ObjectiveInstance[] GetSubObjectives (int objectiveID, ObjectiveDisplayType objectiveDisplayType = ObjectiveDisplayType.All)
 		{
 			ObjectiveInstance objectiveInstance = GetObjective (objectiveID);
 			if (objectiveInstance != null)
 			{
-				return objectiveInstance.GetSubObjectives ();
+				return objectiveInstance.GetSubObjectives (objectiveDisplayType);
 			}
 
 			return new ObjectiveInstance[0];

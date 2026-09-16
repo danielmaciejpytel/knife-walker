@@ -474,7 +474,7 @@ namespace AC
 			}
 			while (unhandledCursorInteractions.Count > cursorIcons.Count)
 			{
-				unhandledCursorInteractions.RemoveAt (unhandledCursorInteractions.Count + 1);
+				unhandledCursorInteractions.RemoveAt (unhandledCursorInteractions.Count - 1);
 			}
 		}
 
@@ -507,7 +507,7 @@ namespace AC
 				{
 					EditorGUILayout.LabelField ("Input button:", _cursorIcon.GetButtonName ());
 				}
-				_cursorIcon.ShowGUI (true, true, "Texture:", cursorRendering, "AC.KickStarter.cursorManager.GetCursorIconFromID (" + i + ")", "The icon's texture");
+				_cursorIcon.ShowGUI (CursorIconBase.IncludeSize.OnlyIfSoftware, true, "Texture:", cursorRendering, "AC.KickStarter.cursorManager.GetCursorIconFromID (" + i + ")", "The icon's texture");
 
 				if (AllowUnhandledIcons ())
 				{
@@ -579,7 +579,7 @@ namespace AC
 			if (fieldLabel != "" && fieldLabel.Length > 0)
 				EditorGUILayout.LabelField (fieldLabel,  CustomStyles.subHeader);
 
-			icon.ShowGUI (true, includeAlwaysAnimate, "Texture:", cursorRendering, apiPrefix, tooltip);
+			icon.ShowGUI (CursorIconBase.IncludeSize.OnlyIfSoftware, includeAlwaysAnimate, "Texture:", cursorRendering, apiPrefix, tooltip);
 			GUILayout.Box("", GUILayout.ExpandWidth(true), GUILayout.Height(1));
 		}
 
@@ -594,16 +594,14 @@ namespace AC
 		{
 			if (KickStarter.settingsManager)
 			{
-				if (KickStarter.settingsManager.interactionMethod == AC_InteractionMethod.ChooseInteractionThenHotspot)
+				switch (KickStarter.settingsManager.interactionMethod)
 				{
-					return true;
-				}
-				else if (KickStarter.settingsManager.interactionMethod == AC_InteractionMethod.ChooseHotspotThenInteraction)
-				{
-					if (KickStarter.settingsManager.selectInteractions != SelectInteractions.CyclingCursorAndClickingHotspot && !KickStarter.settingsManager.autoHideInteractionIcons)
-					{
+					case AC_InteractionMethod.ChooseInteractionThenHotspot:
+					case AC_InteractionMethod.CustomScript:
 						return true;
-					}
+
+					case AC_InteractionMethod.ChooseHotspotThenInteraction:
+						return KickStarter.settingsManager.selectInteractions != SelectInteractions.CyclingCursorAndClickingHotspot && !KickStarter.settingsManager.autoHideInteractionIcons;
 				}
 			}
 			return false;

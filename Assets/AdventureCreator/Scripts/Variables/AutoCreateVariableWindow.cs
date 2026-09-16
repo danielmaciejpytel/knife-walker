@@ -41,47 +41,56 @@ namespace AC
 				GUIUtility.ExitGUI ();
 			}
 		}
+		
 	
 
 		private void OnCreateVariable ()
+		{
+			CreateVariable(variableName, variableType, location, variables);
+			Close ();
+		}
+		
+		
+		public static GVar CreateVariable(string variableName, VariableType variableType, VariableLocation location, Variables variables)
 		{
 			variableName = variableName.Trim ();
 			
 			if (string.IsNullOrEmpty (variableName))
 			{
 				EditorUtility.DisplayDialog ("Unable to create Variable", "Please specify a valid Variable name.", "Close");
-				return;
+				return null;
 			}
 			
+			GVar newVariable = null;
 			if (location == VariableLocation.Global && KickStarter.variablesManager != null)
 			{
 				Undo.RecordObject (KickStarter.variablesManager, "Create variable");
-				CreateNewVariable (KickStarter.variablesManager.vars);
+				newVariable = CreateNewVariable (KickStarter.variablesManager.vars, variableName, variableType, location);
 
 				UnityVersionHandler.CustomSetDirty (KickStarter.variablesManager);
 			}
 			else if (location == VariableLocation.Local && KickStarter.localVariables != null)
 			{
 				Undo.RecordObject (KickStarter.localVariables, "Create variable");
-				CreateNewVariable (KickStarter.localVariables.localVars);
+				newVariable = CreateNewVariable (KickStarter.localVariables.localVars, variableName, variableType, location);
 
 				UnityVersionHandler.CustomSetDirty (KickStarter.localVariables);
 			}
 			else if (location == VariableLocation.Component && variables)
 			{
 				Undo.RecordObject (variables, "Create variable");
-				CreateNewVariable (variables.vars);
+				newVariable = CreateNewVariable (variables.vars, variableName, variableType, location);
 
 				UnityVersionHandler.CustomSetDirty (variables);
 			}
-
-			Close ();
+			
+			return newVariable;
 		}
 
 
-		private void CreateNewVariable (List<GVar> _vars)
+		private static GVar CreateNewVariable (List<GVar> _vars, string variableName, VariableType variableType, VariableLocation location)
 		{
-			if (_vars == null) return;
+			if (_vars == null) return null;
 
 			GVar newVariable = new GVar (GetIDArray (_vars));
 			newVariable.label = variableName;
@@ -90,18 +99,11 @@ namespace AC
 			_vars.Add (newVariable);
 			ACDebug.Log ("Created new " + location.ToString () + " variable '" + variableName + "'");
 
-			if (actionFor != null)
-			{
-				if (actionFor is ActionVarSequence)
-				{
-					ActionVarSequence actionVarSequence = (ActionVarSequence) actionFor;
-					actionVarSequence.variableID = newVariable.id;
-				}
-			}
+			return newVariable;
 		}
 
 
-		private int[] GetIDArray (List<GVar> _vars)
+		private static int[] GetIDArray (List<GVar> _vars)
 		{
 			// Returns a list of id's in the list
 			

@@ -336,7 +336,7 @@ namespace AC
 		/**
 		 * <summary>De-serializes a RememberData class.</summary>
 		 * <param name = "dataString">The RememberData class, serialized as a string</param>
-		 * <returns>The de-serialized RememberData class</return>
+		 * <returns>The de-serialized RememberData class</returns>
 		 */
 		public static T LoadScriptData <T> (string dataString) where T : RememberData
 		{

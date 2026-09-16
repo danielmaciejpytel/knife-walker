@@ -36,6 +36,8 @@ namespace AC
 
 		protected override void OnInitialiseScene ()
 		{
+			PreventStartStateIfPersistent();
+			
 			if (Hotspot != null &&
 				KickStarter.settingsManager &&
 				isActiveAndEnabled)

@@ -68,7 +68,7 @@ namespace AC
 				{
 					return;
 				}
-				else if (touchIndex >= 0 && touchIndex < Input.touchCount)
+				else if (touchIndex >= 0 && touchIndex < KickStarter.playerInput.InputTouchCount ())
 				{
 					return;
 				}
@@ -87,7 +87,7 @@ namespace AC
 		{
 			if (touchIndex >= 0)
 			{
-				if (Input.touchCount > touchIndex)
+				if (KickStarter.playerInput.InputTouchCount() > touchIndex)
 				{
 					var touchInstance = KickStarter.playerInput.GetTouchInstance (touchIndex);
 					if (touchInstance != null)

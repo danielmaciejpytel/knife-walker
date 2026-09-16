@@ -184,7 +184,7 @@ MonoBehaviour:
   numSlots: 1
   uiTextTMP: {fileID: 0}
   hideScrollingCharacters: 0
-  uiText: {fileID: 0}
+  uiText: {fileID: 3582486099135685324, guid: 466fa6d84c1880c4f83b848f9f3737f8, type: 3}
   _label: Quality preset
   anchor: 4
   textEffects: 0
@@ -572,7 +572,8 @@ MonoBehaviour:
   numSlots: 1
   uiButton: {fileID: 0}
   uiDropdownTMP: {fileID: 0}
-  uiDropdown: {fileID: 0}
+  uiDropdown: {fileID: 4989430805205870444, guid: 466fa6d84c1880c4f83b848f9f3737f8,
+    type: 3}
   actionListOnClick: {fileID: 0}
   label: Cycle
   labelSuffix: ' : '

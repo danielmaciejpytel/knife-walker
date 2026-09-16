@@ -1,6 +1,7 @@
 ﻿namespace AC
 {
 
+	[System.Serializable]
 	public class EventPlayerSet : EventBase
 	{
 
@@ -23,13 +24,13 @@
 
 		public override void Register ()
 		{
-			EventManager.OnPlayerSpawn += OnSetPlayer;
+			EventManager.OnSetPlayer += OnSetPlayer;
 		}
 
 
 		public override void Unregister ()
 		{
-			EventManager.OnPlayerSpawn -= OnSetPlayer;
+			EventManager.OnSetPlayer -= OnSetPlayer;
 		}
 
 

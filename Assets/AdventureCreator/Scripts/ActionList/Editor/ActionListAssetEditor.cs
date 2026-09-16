@@ -570,10 +570,10 @@ namespace AC
 				_target.isSkippable = CustomGUILayout.Toggle ("Is skippable?", _target.isSkippable);
 				_target.unfreezePauseMenus = CustomGUILayout.Toggle ("Unfreeze 'pause' Menus?", _target.unfreezePauseMenus);
 			}
-			_target.canRunMultipleInstances = CustomGUILayout.Toggle ("Can run multiple instances?", _target.canRunMultipleInstances);
+			_target.canRunMultipleInstances = CustomGUILayout.Toggle ("Can run multiple at once?", _target.canRunMultipleInstances);
 			if (!_target.IsSkippable ())
 			{
-				_target.canSurviveSceneChanges = CustomGUILayout.Toggle ("Can survive scene changes?", _target.canSurviveSceneChanges);
+				_target.canSurviveSceneChanges = CustomGUILayout.Toggle ("Survives scene changes?", _target.canSurviveSceneChanges);
 			}
 			_target.useParameters = CustomGUILayout.Toggle ("Use parameters?", _target.useParameters);
 			if (_target.useParameters)
@@ -596,10 +596,15 @@ namespace AC
 		}
 
 
+#if UNITY_6000_5_OR_NEWER
+		[OnOpenAsset(10)]
+		public static bool OnOpenAsset (EntityId entityId, int line) {
+			ActionListAsset actionListAsset = EditorUtility.EntityIdToObject (entityId) as ActionListAsset;
+#else
 		[OnOpenAssetAttribute(10)]
-		public static bool OnOpenAsset (int instanceID, int line)
-		{
+		public static bool OnOpenAsset (int instanceID, int line) {
 			ActionListAsset actionListAsset = EditorUtility.InstanceIDToObject (instanceID) as ActionListAsset;
+#endif
 			if (actionListAsset)
 			{
 				ActionListEditorWindow.Init (actionListAsset);

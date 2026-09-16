@@ -85,21 +85,41 @@ namespace AC.Templates.MobileJoystick
 
 		protected int GetBeginningTouchIndex (Canvas canvas)
 		{
-#if !UNITY_EDITOR
-			for (int i = 0; i < Mathf.Min (2, Input.touchCount); i++)
+#if InputSystemIsPresent
+	#if !UNITY_EDITOR
+			int i = 0;
+			foreach (var touch in UnityEngine.InputSystem.EnhancedTouch.Touch.activeTouches)
 			{
-				Touch touch = Input.GetTouch (i);
-				if (touch.phase == TouchPhase.Began && PointIsInBoundary (canvas, touch.position))
+				if (i < 2 && touch.phase == UnityEngine.InputSystem.TouchPhase.Began && PointIsInBoundary(canvas, touch.screenPosition))
+				{
+					return touch.finger.index;
+				}
+				i++;
+			}
+	#else
+			Vector2 mousePosition = UnityEngine.InputSystem.Mouse.current.position.ReadValue ();
+			if (UnityEngine.InputSystem.Mouse.current.leftButton.isPressed && PointIsInBoundary (canvas, mousePosition))
+			{
+				return 0;
+			}
+	#endif
+#else
+	#if !UNITY_EDITOR
+			for (int i = 0; i < Mathf.Min(2, Input.touchCount); i++)
+			{
+				Touch touch = Input.GetTouch(i);
+				if (touch.phase == TouchPhase.Began && PointIsInBoundary(canvas, touch.position))
 				{
 					return touch.fingerId;
 				}
 			}
-#else
+	#else
 			Vector2 mousePosition = Input.mousePosition;
 			if (Input.GetMouseButtonDown (0) && PointIsInBoundary (canvas, mousePosition))
 			{
 				return 0;
 			}
+	#endif
 #endif
 			return -1;
 		}
@@ -117,18 +137,33 @@ namespace AC.Templates.MobileJoystick
 
 		protected bool IsStillTouching ()
 		{
-#if !UNITY_EDITOR
+#if InputSystemIsPresent
+	#if !UNITY_EDITOR
+			foreach (var touch in UnityEngine.InputSystem.EnhancedTouch.Touch.activeTouches)
+			{
+				if (touch.finger.index == fingerID && touch.phase != UnityEngine.InputSystem.TouchPhase.Ended)
+				{
+					return true;
+				}
+			}
+			return false;
+	#else
+			return UnityEngine.InputSystem.Mouse.current.leftButton.isPressed;
+	#endif
+#else
+	#if !UNITY_EDITOR
 			for (int i = 0; i < Input.touchCount; i++)
 			{
-				Touch touch = Input.GetTouch (i);
+				Touch touch = Input.GetTouch(i);
 				if (touch.fingerId == fingerID && touch.phase != TouchPhase.Ended)
 				{
 					return true;
 				}
 			}
 			return false;
-#else
+	#else
 			return Input.GetMouseButton (0);
+	#endif
 #endif
 		}
 

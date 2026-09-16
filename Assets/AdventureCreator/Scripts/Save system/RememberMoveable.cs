@@ -40,11 +40,14 @@ namespace AC
 		
 		protected override void OnInitialiseScene ()
 		{
+			PreventStartStateIfPersistent();
+			
 			if (KickStarter.settingsManager && isActiveAndEnabled && Moveable)
 			{
 				DragBase dragBase = Moveable as DragBase;
 				if (dragBase)
 				{
+					
 					if (startState == AC_OnOff.On)
 					{
 						dragBase.TurnOn ();

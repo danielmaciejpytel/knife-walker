@@ -186,10 +186,21 @@ namespace AC
 					yield break;
 				}
 
-				var handle = playerPrefab.playerAssetReference.LoadAssetAsync<GameObject> ();
+				var handle = Addressables.LoadAssetAsync<GameObject>(playerPrefab.playerAssetReference);
 				yield return handle;
 				if (handle.Result != null)
 				{
+					if (playerAddressableDict.ContainsKey (playerPrefab))
+					{
+						var playerInstance = playerPrefab.GetSceneInstance();
+						if (playerInstance)
+						{
+							Destroy(playerInstance.gameObject);
+						}
+						Addressables.Release (playerAddressableDict[playerPrefab]);
+						playerInstance.gameObject.SetActive(false);
+						playerAddressableDict.Remove(playerPrefab);
+					}
 					playerAddressableDict.Add (playerPrefab, handle);
 				}
 			}

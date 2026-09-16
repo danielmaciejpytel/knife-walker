@@ -1,13 +1,17 @@
 /*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2025
  *	
  *	"ActionSpeech.cs"
  * 
  *	This action handles the displaying of messages, and talking of characters.
  * 
  */
+
+#if LocalizationIsPresent && AddressableIsPresent
+#define CAN_USE_LOCALIZATION
+#endif
 
 using UnityEngine;
 using System.Collections.Generic;
@@ -23,19 +27,19 @@ using UnityEngine.AddressableAssets;
 
 namespace AC
 {
-	
+
 	[System.Serializable]
 	public class ActionSpeech : Action, ITranslatable
 	{
-		
+
 		public int constantID = 0;
 		public int parameterID = -1;
-		
+
 		public int messageParameterID = -1;
-		
+
 		public bool isPlayer;
 		public int playerID = -1;
-		
+
 		public Char speaker;
 		public string messageText;
 		public int lineID = -1;
@@ -44,22 +48,24 @@ namespace AC
 		public bool noAnimation = false;
 		public AnimationClip headClip;
 		public AnimationClip mouthClip;
-		
+
 		public bool play2DHeadAnim = false;
 		public string headClip2D = "";
 		public int headLayer;
 		public bool play2DMouthAnim = false;
 		public string mouthClip2D = "";
 		public int mouthLayer;
-		
+
 		public float waitTimeOffset = 0f;
 		protected bool stopAction = false;
-		
+
 		protected int splitIndex = 0;
 		protected bool splitDelay = false;
+		protected float postWaitTime;
 
 		protected Char runtimeSpeaker;
 		protected Speech speech;
+		bool speechWasSkipped;
 		protected LocalVariables localVariables;
 		protected bool runActionListInBackground;
 		protected List<ActionParameter> ownParameters = new List<ActionParameter>();
@@ -67,55 +73,75 @@ namespace AC
 		protected AudioClip addressableAudio;
 		protected TextAsset addressableLipSync;
 
-		public static string[] stringSeparators = new string[] {"\n", "\\n"};
+		public static string[] stringSeparators = new string[] { "\n", "\\n" };
 
-		#if AddressableIsPresent
+#if AddressableIsPresent
 		protected bool isAwaitingAddressableAudio = false;
 		protected bool isAwaitingAddressableLipsync = false;
-		#endif
+		private readonly HashSet<AsyncOperationHandle<AudioClip>> audioHandles = new HashSet<AsyncOperationHandle<AudioClip>>();
+		private readonly HashSet<AsyncOperationHandle<TextAsset>> lipsyncHandles = new HashSet<AsyncOperationHandle<TextAsset>>();
+#endif
+
+#if CAN_USE_LOCALIZATION
+		public bool useLocalization;
+		public UnityEngine.Localization.LocalizedString localizedString;
+		private SpeechMetadata speechMetadata;
+		private bool isAwaitingCallback;
+		private bool gotLocalizedAudio, gotLocalizedLipsync;
+#endif
 
 
-		public override ActionCategory Category { get { return ActionCategory.Dialogue; }}
-		public override string Title { get { return "Play speech"; }}
-		public override string Description { get { return "Makes a Character talk, or – if no Character is specified – displays a message.Subtitles only appear if they are enabled from the Options menu.A 'thinking' effect can be produced by opting to not play any animation."; }}
-		
-		
-		public override void AssignValues (List<ActionParameter> parameters)
+		public override ActionCategory Category { get { return ActionCategory.Dialogue; } }
+		public override string Title { get { return "Play speech"; } }
+		public override string Description { get { return "Makes a Character talk, or – if no Character is specified – displays narration."; } }
+
+
+		public override void AssignValues(List<ActionParameter> parameters)
 		{
 			if (parameters != null) ownParameters = parameters;
 
-			messageText = AssignString (parameters, messageParameterID, messageText);
+			messageText = AssignString(parameters, messageParameterID, messageText);
 
 			if (isPlayer)
 			{
-				runtimeSpeaker = AssignPlayer (playerID, parameters, parameterID);
+				runtimeSpeaker = AssignPlayer(playerID, parameters, parameterID);
 			}
 			else
 			{
-				runtimeSpeaker = AssignFile<Char> (parameters, parameterID, constantID, speaker);
+				runtimeSpeaker = AssignFile<Char>(parameters, parameterID, constantID, speaker);
 				if (runtimeSpeaker == null && speaker == null && constantID != 0 && parameterID < 0)
 				{
-					LogWarning ("Cannot find speaker with Constant ID = " + constantID);
+					LogWarning("Cannot find speaker with Constant ID = " + constantID);
 				}
 			}
 
 			if (runtimeSpeaker && !runtimeSpeaker.gameObject.activeInHierarchy && runtimeSpeaker.displayLineID == -1 && runtimeSpeaker.lineID >= 0)
-			{ 
+			{
 				runtimeSpeaker.displayLineID = runtimeSpeaker.lineID;
 			}
 
-			#if AddressableIsPresent
+#if AddressableIsPresent
 			isAwaitingAddressableAudio = false;
 			isAwaitingAddressableLipsync = false;
 			addressableAudio = null;
 			addressableLipSync = null;
-			#endif
+#endif
+
+#if CAN_USE_LOCALIZATION
+			isAwaitingCallback = false;
+			speechMetadata = null;
+			gotLocalizedAudio = false;
+			gotLocalizedLipsync = false;
+			EventManager.OnStopSpeech_Alt -= OnStopSpeech;
+#endif
 
 			splitIndex = 0;
+			postWaitTime = 0f;
+			speechWasSkipped = false;
 		}
 
 
-		#if AddressableIsPresent
+#if AddressableIsPresent
 
 		private void OnCompleteLoadAudio (AsyncOperationHandle<AudioClip> obj)
 		{
@@ -140,14 +166,14 @@ namespace AC
 			}
 		}
 
-		#endif
+#endif
 
 
-		public override void AssignParentList (ActionList actionList)
+		public override void AssignParentList(ActionList actionList)
 		{
 			if (actionList != null)
 			{
-				localVariables = UnityVersionHandler.GetLocalVariablesOfGameObject (actionList.gameObject);
+				localVariables = UnityVersionHandler.GetLocalVariablesOfGameObject(actionList.gameObject);
 				runActionListInBackground = (actionList.actionListType == ActionListType.RunInBackground);
 			}
 			if (localVariables == null)
@@ -155,22 +181,55 @@ namespace AC
 				localVariables = KickStarter.localVariables;
 			}
 
-			base.AssignParentList (actionList);
+			base.AssignParentList(actionList);
 		}
-		
-		
-		public override float Run ()
+
+
+		public override float Run()
 		{
-			#if AddressableIsPresent
+			if (postWaitTime > 0f)
+			{
+				bool _isSkipping = false;
+				if (KickStarter.speechManager.allowSpeechSkipping && KickStarter.speechManager.ignorePostLineDelayWhenSkipping)
+				{
+					if (KickStarter.speechManager.canSkipWithMouseClicks && (KickStarter.playerInput.GetMouseState () == MouseState.SingleClick ||
+																		KickStarter.playerInput.GetMouseState () == MouseState.RightClick))
+					{
+						_isSkipping = true;
+					}
+
+					if (KickStarter.playerInput.InputGetButtonDown ("SkipSpeech"))
+					{
+						_isSkipping = true;
+					}
+				}
+				
+				postWaitTime -= Time.deltaTime;
+				if (postWaitTime <= 0f || _isSkipping)
+				{
+					isRunning = false;
+					return 0f;
+				}
+				return defaultPauseTime;
+			}
+			
+#if CAN_USE_LOCALIZATION
+			if (useLocalization)
+			{
+				return Run_Localization ();
+			}
+#endif
+
+#if AddressableIsPresent
 			if (isAwaitingAddressableAudio || isAwaitingAddressableLipsync)
 			{
 				return defaultPauseTime;
 			}
-			#endif
+#endif
 
 			if (KickStarter.speechManager.referenceSpeechFiles == ReferenceSpeechFiles.ByAddressable && lineID >= 0 && splitIndex == 0)
 			{
-				#if AddressableIsPresent
+#if AddressableIsPresent
 				if (!isRunning && StartAddressableSpeech ())
 				{
 					isRunning = true;
@@ -181,9 +240,9 @@ namespace AC
 					isRunning = false;
 					return 0f;
 				}
-				#else
-				LogWarning ("Cannot use addressables system for speech audio because 'AddressableIsPresent' has not been added as a Scripting Define Symbol.  This can be added in Unity's Player settings.");
-				#endif
+#else
+				LogWarning("Cannot use addressables system for speech audio because 'AddressableIsPresent' has not been added as a Scripting Define Symbol.  This can be added in Unity's Player settings.");
+#endif
 			}
 
 			if (!isRunning)
@@ -193,16 +252,16 @@ namespace AC
 				splitDelay = false;
 				splitIndex = 0;
 
-				StartSpeech ();
+				StartSpeech();
 
 				if (isBackground)
 				{
 					if (KickStarter.speechManager.separateLines)
 					{
-						string[] textArray = GetSpeechArray ();
+						string[] textArray = GetSpeechArray();
 						if (textArray != null && textArray.Length > 1)
 						{
-							LogWarning ("Cannot separate multiple speech lines when 'Play in background?' is checked - will only play '" + textArray[0] + "'");
+							LogWarning("Cannot separate multiple speech lines when 'Play in background?' is checked - will only play '" + textArray[0] + "'");
 						}
 					}
 
@@ -231,9 +290,9 @@ namespace AC
 						if (!splitDelay)
 						{
 							// Begin pause if more lines are present
-							splitIndex ++;
-							string[] textArray = GetSpeechArray ();
-								
+							splitIndex++;
+							string[] textArray = GetSpeechArray();
+
 							if (textArray.Length > splitIndex)
 							{
 								if (KickStarter.speechManager.separateLinePause > 0f)
@@ -247,7 +306,7 @@ namespace AC
 									// Show next line
 									splitDelay = false;
 
-									#if AddressableIsPresent
+#if AddressableIsPresent
 									if (KickStarter.speechManager.referenceSpeechFiles == ReferenceSpeechFiles.ByAddressable)
 									{
 										StartAddressableSpeech ();
@@ -256,9 +315,9 @@ namespace AC
 									{
 										StartSpeech ();
 									}
-									#else
-									StartSpeech ();
-									#endif
+#else
+									StartSpeech();
+#endif
 
 									return defaultPauseTime;
 								}
@@ -269,8 +328,8 @@ namespace AC
 						{
 							// Show next line
 							splitDelay = false;
-								
-							#if AddressableIsPresent
+
+#if AddressableIsPresent
 							if (KickStarter.speechManager.referenceSpeechFiles == ReferenceSpeechFiles.ByAddressable)
 							{
 								StartAddressableSpeech ();
@@ -279,16 +338,16 @@ namespace AC
 							{
 								StartSpeech ();
 							}
-							#else
-							StartSpeech ();
-							#endif
+#else
+							StartSpeech();
+#endif
 
 							return defaultPauseTime;
 						}
 					}
 
-					float totalWaitTimeOffset = waitTimeOffset + KickStarter.speechManager.waitTimeOffset;
-					if (totalWaitTimeOffset <= 0f)
+					postWaitTime = waitTimeOffset + KickStarter.speechManager.waitTimeOffset;
+					if (postWaitTime <= 0f || (speechWasSkipped && KickStarter.speechManager.ignorePostLineDelayWhenSkipping))
 					{
 						isRunning = false;
 						return 0f;
@@ -296,7 +355,7 @@ namespace AC
 					else
 					{
 						stopAction = true;
-						return totalWaitTimeOffset;
+						return defaultPauseTime;
 					}
 				}
 				else
@@ -305,13 +364,21 @@ namespace AC
 				}
 			}
 		}
-		
-		
-		public override void Skip ()
-		{
-			KickStarter.dialog.KillDialog (true, true);
 
-			SpeechLog log = new SpeechLog ();
+
+		public override void Skip()
+		{
+#if CAN_USE_LOCALIZATION
+			if (useLocalization)
+			{
+				Skip_Localization ();
+				return;
+			}
+#endif
+
+			KickStarter.dialog.KillDialog(true, true);
+
+			SpeechLog log = new SpeechLog();
 			log.lineID = lineID;
 			log.fullText = messageText;
 
@@ -320,26 +387,26 @@ namespace AC
 				log.speakerName = runtimeSpeaker.name;
 				if (!noAnimation)
 				{
-					if (runtimeSpeaker.GetAnimEngine () != null)
+					if (runtimeSpeaker.GetAnimEngine() != null)
 					{
-						runtimeSpeaker.GetAnimEngine ().ActionSpeechSkip (this);
+						runtimeSpeaker.GetAnimEngine().ActionSpeechSkip(this);
 					}
 				}
 			}
 
 			string _text = messageText;
 
-			int languageNumber = Options.GetLanguage ();
-			_text = KickStarter.runtimeLanguages.GetTranslation (_text, lineID, languageNumber, AC_TextType.Speech);
+			int languageNumber = Options.GetLanguage();
+			_text = KickStarter.runtimeLanguages.GetTranslation(_text, lineID, languageNumber, AC_TextType.Speech);
 
-			_text = _text.Replace ("\\n", "\n");
+			_text = _text.Replace("\\n", "\n");
 
-			if (!string.IsNullOrEmpty (_text))
+			if (!string.IsNullOrEmpty(_text))
 			{
-				_text = AdvGame.ConvertTokens (_text, languageNumber, localVariables, ownParameters);
-				Speech.CreateSkippedSpeech (runtimeSpeaker, _text, lineID);
+				_text = AdvGame.ConvertTokens(_text, languageNumber, localVariables, ownParameters);
+				Speech.CreateSkippedSpeech(runtimeSpeaker, _text, lineID);
 			}
-			KickStarter.runtimeVariables.AddToSpeechLog (log);
+			KickStarter.runtimeVariables.AddToSpeechLog(log);
 		}
 
 
@@ -354,9 +421,9 @@ namespace AC
 				return speaker;
 			}
 		}
-		
-		
-		#if UNITY_EDITOR
+
+
+#if UNITY_EDITOR
 
 		public override void ClearIDs ()
 		{
@@ -366,22 +433,27 @@ namespace AC
 		
 		public override void ShowGUI (List<ActionParameter> parameters)
 		{
-			if (lineID > -1)
+#if CAN_USE_LOCALIZATION
+			if (!useLocalization)
+#endif
 			{
-				if (multiLineIDs != null && multiLineIDs.Length > 0 && KickStarter.speechManager != null && KickStarter.speechManager.separateLines)
+				if (lineID > -1)
 				{
-					string IDs = lineID.ToString ();
-					foreach (int multiLineID in multiLineIDs)
+					if (multiLineIDs != null && multiLineIDs.Length > 0 && KickStarter.speechManager != null && KickStarter.speechManager.separateLines)
 					{
-						IDs += ", " + multiLineID;
+						string IDs = lineID.ToString ();
+						foreach (int multiLineID in multiLineIDs)
+						{
+							IDs += ", " + multiLineID;
+						}
+
+						EditorGUILayout.LabelField ("Speech Manager IDs:", IDs);
+
 					}
-
-					EditorGUILayout.LabelField ("Speech Manager IDs:", IDs);
-
-				}
-				else
-				{
-					EditorGUILayout.LabelField ("Speech Manager ID:", lineID.ToString ());
+					else
+					{
+						EditorGUILayout.LabelField ("Speech Manager ID:", lineID.ToString ());
+					}
 				}
 			}
 
@@ -421,7 +493,27 @@ namespace AC
 				}
 			}
 			
-			TextArea ("Line text:", ref messageText, 65f, parameters, ref messageParameterID);
+#if CAN_USE_LOCALIZATION
+			useLocalization = EditorGUILayout.Toggle ("Use Localization?", useLocalization);
+			if (useLocalization)
+			{
+				var serializedObject = new SerializedObject (this);
+				var localizedStringProperty = serializedObject.FindProperty ("localizedString");
+				if (localizedStringProperty == null)
+				{
+					EditorGUILayout.HelpBox ("Cannot find property 'localizedString' to serialize!", MessageType.Warning);
+				}
+				else
+				{
+					EditorGUILayout.PropertyField (localizedStringProperty, true);
+				}
+				serializedObject.ApplyModifiedProperties ();
+			}
+			else
+#endif
+			{
+				TextArea ("Line text:", ref messageText, 75f, parameters, ref messageParameterID);
+			}
 
 			Char _speaker = null;
 			if (isPlayer)
@@ -461,9 +553,9 @@ namespace AC
 					{
 						_speaker.GetAnimEngine ().ActionSpeechGUI (this, _speaker);
 
-						#if !AC_ActionListPrefabs
+#if !AC_ActionListPrefabs
 						if (GUI.changed && this) EditorUtility.SetDirty (this);
-						#endif
+#endif
 					}
 				}
 			}
@@ -588,34 +680,41 @@ namespace AC
 			return (parameterID < 0 && playerID == _playerID);
 		}
 
-		#endif
+#endif
 
 
 		#region ITranslatable
 
-		public string GetTranslatableString (int index)
+		public string GetTranslatableString(int index)
 		{
 			if (KickStarter.speechManager.separateLines)
 			{
-				return GetSpeechArray () [index];
+				return GetSpeechArray()[index];
 			}
 			return messageText;
 		}
 
 
-		public int GetTranslationID (int index)
+		public virtual int GetTranslationID(int index)
 		{
+#if CAN_USE_LOCALIZATION
+			if (useLocalization)
+			{
+				return -1;
+			}
+#endif
+
 			if (index == 0)
 			{
 				return lineID;
 			}
 			else
 			{
-				return multiLineIDs[index-1];
+				return multiLineIDs[index - 1];
 			}
 		}
 
-		#if UNITY_EDITOR
+#if UNITY_EDITOR
 
 		public void UpdateTranslatableString (int index, string updatedText)
 		{
@@ -644,8 +743,15 @@ namespace AC
 		}
 
 
-		public int GetNumTranslatables ()
+		public virtual int GetNumTranslatables ()
 		{
+#if CAN_USE_LOCALIZATION
+			if (useLocalization)
+			{
+				return 0;
+			}
+#endif
+
 			if (KickStarter.speechManager.separateLines)
 			{
 				string[] messages = GetSpeechArray ();
@@ -739,11 +845,17 @@ namespace AC
 			}
 			else
 			{
-				if (isAssetFile)
+				if (isAssetFile &&
+					!isPlayer &&
+					parameterID == -1 &&
+					constantID != 0)
 				{
-					if (!isPlayer && parameterID == -1)
+					var newSpeaker = ConstantID.GetComponent<Char> (constantID);
+					if (speaker && speaker.GetComponent <ConstantID>() != null && speaker.GetComponent <ConstantID>().constantID == constantID)
+					{}
+					else if (newSpeaker && !Application.isPlaying)
 					{
-						speaker = IDToField <Char> (speaker, constantID, false);
+						speaker = newSpeaker;
 					}
 				}
 
@@ -794,22 +906,22 @@ namespace AC
 			return false;
 		}
 
-		#endif
+#endif
 
 		#endregion
 
 
-		protected string[] GetSpeechArray ()
+		protected string[] GetSpeechArray()
 		{
-			string _text = messageText.Replace ("\\n", "\n");
-			string[] textArray = _text.Split (stringSeparators, System.StringSplitOptions.None);
+			string _text = messageText.Replace("\\n", "\n");
+			string[] textArray = _text.Split(stringSeparators, System.StringSplitOptions.None);
 			return textArray;
 		}
 
 
-		protected bool StartAddressableSpeech ()
+		protected bool StartAddressableSpeech()
 		{
-			#if AddressableIsPresent
+#if AddressableIsPresent
 
 			int _lineID = lineID;
 			if (KickStarter.speechManager.separateLines && splitIndex > 0)
@@ -846,12 +958,16 @@ namespace AC
 
 				string filename = speechLine.GetFilename (overrideName);
 				
-				Addressables.LoadAssetAsync<AudioClip> (KickStarter.speechManager.speechAddressablesPrefix + filename).Completed += OnCompleteLoadAudio;
+				var audioHandle = Addressables.LoadAssetAsync<AudioClip> (KickStarter.speechManager.speechAddressablesPrefix + filename);
+				audioHandle.Completed += OnCompleteLoadAudio;
+				audioHandles.Add(audioHandle);
 				isAwaitingAddressableAudio = true;
 
 				if (KickStarter.speechManager.UseFileBasedLipSyncing ())
 				{
-					Addressables.LoadAssetAsync<TextAsset> (KickStarter.speechManager.lipSyncAddressablesPrefix + filename).Completed += OnCompleteLoadLipsync;
+					var lipSyncHandle = Addressables.LoadAssetAsync<TextAsset> (KickStarter.speechManager.lipSyncAddressablesPrefix + filename);
+					lipSyncHandle.Completed += OnCompleteLoadLipsync;
+					lipsyncHandles.Add(lipSyncHandle);
 					isAwaitingAddressableLipsync = true;
 				}
 
@@ -859,34 +975,40 @@ namespace AC
 				return true;
 			}
 			
-			#endif
+#endif
 
 			return false;
 		}
 
 
-		protected void StartSpeech (AudioClip audioClip = null, TextAsset textAsset = null)
+		protected void StartSpeech(AudioClip audioClip = null, TextAsset textAsset = null, string overrideText = "")
 		{
 			string _text = messageText;
 			int _lineID = lineID;
-			
-			int languageNumber = Options.GetLanguage ();
-			_text = KickStarter.runtimeLanguages.GetTranslation (_text, lineID, languageNumber, AC_TextType.Speech);
-			
-			_text = _text.Replace ("\\n", "\n");
 
-			if (KickStarter.speechManager.separateLines)
+			if (!string.IsNullOrEmpty(overrideText))
 			{
-				string[] textArray = GetSpeechArray ();
+				_text = overrideText;
+				_lineID = -1;
+			}
+
+			int languageNumber = Options.GetLanguage();
+			_text = KickStarter.runtimeLanguages.GetTranslation(_text, lineID, languageNumber, AC_TextType.Speech);
+
+			_text = _text.Replace("\\n", "\n");
+
+			if (KickStarter.speechManager.separateLines && string.IsNullOrEmpty(overrideText))
+			{
+				string[] textArray = GetSpeechArray();
 				if (textArray.Length > 1)
 				{
-					_text = textArray [splitIndex];
+					_text = textArray[splitIndex];
 
 					if (splitIndex > 0)
 					{
-						if (multiLineIDs != null && multiLineIDs.Length > (splitIndex-1))
+						if (multiLineIDs != null && multiLineIDs.Length > (splitIndex - 1))
 						{
-							_lineID = multiLineIDs[splitIndex-1];
+							_lineID = multiLineIDs[splitIndex - 1];
 						}
 						else
 						{
@@ -894,22 +1016,31 @@ namespace AC
 						}
 					}
 
-					_text = KickStarter.runtimeLanguages.GetTranslation (_text, _lineID, languageNumber, AC_TextType.Speech);
+					_text = KickStarter.runtimeLanguages.GetTranslation(_text, _lineID, languageNumber, AC_TextType.Speech);
 				}
 			}
-			
-			if (!string.IsNullOrEmpty (_text))
+
+			if (!string.IsNullOrEmpty(_text))
 			{
-				_text = AdvGame.ConvertTokens (_text, languageNumber, localVariables, ownParameters);
-			
-				speech = KickStarter.dialog.StartDialog (runtimeSpeaker, _text, (isBackground || runActionListInBackground), _lineID, noAnimation, false, audioClip, textAsset);
+				_text = AdvGame.ConvertTokens(_text, languageNumber, localVariables, ownParameters);
+
+				speech = KickStarter.dialog.StartDialog(runtimeSpeaker, _text, (isBackground || runActionListInBackground), _lineID, noAnimation, false, audioClip, textAsset);
 				if (runtimeSpeaker != null && !noAnimation && speech != null)
 				{
-					if (runtimeSpeaker.GetAnimEngine () != null)
+					if (runtimeSpeaker.GetAnimEngine() != null)
 					{
-						runtimeSpeaker.GetAnimEngine ().ActionSpeechRun (this);
+						runtimeSpeaker.GetAnimEngine().ActionSpeechRun(this);
 					}
 				}
+			}
+
+			if (speech != null && speech.isAlive)
+			{
+				speechWasSkipped = false;
+				EventManager.OnSkipSpeech -= OnSkipSpeech;
+				EventManager.OnSkipSpeech += OnSkipSpeech;
+				EventManager.OnStopSpeech_Alt -= OnStopSpeech;
+				EventManager.OnStopSpeech_Alt += OnStopSpeech;
 			}
 		}
 
@@ -922,11 +1053,11 @@ namespace AC
 		 * <param name = "waitUntilFinish">If True, the Action will wait until the character has finished speaking</param>
 		 * <returns>The generated Action</returns>
 		 */
-		public static ActionSpeech CreateNew (Char charToSpeak, string subtitleText, int translationID = -1, bool waitUntilFinish = true)
+		public static ActionSpeech CreateNew(Char charToSpeak, string subtitleText, int translationID = -1, bool waitUntilFinish = true)
 		{
-			ActionSpeech newAction = CreateNew<ActionSpeech> ();
+			ActionSpeech newAction = CreateNew<ActionSpeech>();
 			newAction.speaker = charToSpeak;
-			newAction.TryAssignConstantID (newAction.speaker, ref newAction.constantID);
+			newAction.TryAssignConstantID(newAction.speaker, ref newAction.constantID);
 			newAction.messageText = subtitleText;
 			newAction.isBackground = !waitUntilFinish;
 			newAction.lineID = translationID;
@@ -942,22 +1073,22 @@ namespace AC
 		 * <param name = "waitUntilFinish">If True, the Action will wait until the character has finished speaking</param>
 		 * <returns>The generated Action</returns>
 		 */
-		public static ActionSpeech CreateNew (Char characterToSpeak, string subtitleText, int[] translationIDs, bool waitUntilFinish = true)
+		public static ActionSpeech CreateNew(Char characterToSpeak, string subtitleText, int[] translationIDs, bool waitUntilFinish = true)
 		{
-			ActionSpeech newAction = CreateNew<ActionSpeech> ();
+			ActionSpeech newAction = CreateNew<ActionSpeech>();
 			newAction.speaker = characterToSpeak;
-			newAction.TryAssignConstantID (newAction.speaker, ref newAction.constantID);
+			newAction.TryAssignConstantID(newAction.speaker, ref newAction.constantID);
 			newAction.messageText = subtitleText;
 			newAction.isBackground = !waitUntilFinish;
 
 			newAction.lineID = -1;
 			if (translationIDs != null && translationIDs.Length > 0)
 			{
-				newAction.multiLineIDs = new int[translationIDs.Length-1];
-				for (int i=0; i<translationIDs.Length; i++)
+				newAction.multiLineIDs = new int[translationIDs.Length - 1];
+				for (int i = 0; i < translationIDs.Length; i++)
 				{
 					if (i == 0) newAction.lineID = translationIDs[i];
-					else newAction.multiLineIDs[i-1] = translationIDs[i];
+					else newAction.multiLineIDs[i - 1] = translationIDs[i];
 				}
 			}
 			return newAction;
@@ -972,11 +1103,11 @@ namespace AC
 		 * <param name = "waitUntilFinish">If True, the Action will wait until the character has finished speaking</param>
 		 * <returns>The generated Action</returns>
 		 */
-		public static ActionSpeech CreateNew_Player (string subtitleText, int translationID = -1, bool waitUntilFinish = true)
+		public static ActionSpeech CreateNew_Player(string subtitleText, int translationID = -1, bool waitUntilFinish = true)
 		{
-			ActionSpeech newAction = CreateNew<ActionSpeech> ();
+			ActionSpeech newAction = CreateNew<ActionSpeech>();
 			newAction.isPlayer = true;
-			newAction.TryAssignConstantID (newAction.speaker, ref newAction.constantID);
+			newAction.TryAssignConstantID(newAction.speaker, ref newAction.constantID);
 			newAction.messageText = subtitleText;
 			newAction.isBackground = !waitUntilFinish;
 			newAction.lineID = translationID;
@@ -991,25 +1122,154 @@ namespace AC
 		 * <param name = "waitUntilFinish">If True, the Action will wait until the character has finished speaking</param>
 		 * <returns>The generated Action</returns>
 		 */
-		public static ActionSpeech CreateNew_Player (string subtitleText, int[] translationIDs, bool waitUntilFinish = true)
+		public static ActionSpeech CreateNew_Player(string subtitleText, int[] translationIDs, bool waitUntilFinish = true)
 		{
-			ActionSpeech newAction = CreateNew<ActionSpeech> ();
+			ActionSpeech newAction = CreateNew<ActionSpeech>();
 			newAction.isPlayer = true;
-			newAction.TryAssignConstantID (newAction.speaker, ref newAction.constantID);
+			newAction.TryAssignConstantID(newAction.speaker, ref newAction.constantID);
 			newAction.messageText = subtitleText;
 			newAction.isBackground = !waitUntilFinish;
 
 			newAction.lineID = -1;
 			if (translationIDs != null && translationIDs.Length > 0)
 			{
-				newAction.multiLineIDs = new int[translationIDs.Length-1];
-				for (int i=0; i<translationIDs.Length; i++)
+				newAction.multiLineIDs = new int[translationIDs.Length - 1];
+				for (int i = 0; i < translationIDs.Length; i++)
 				{
 					if (i == 0) newAction.lineID = translationIDs[i];
-					else newAction.multiLineIDs[i-1] = translationIDs[i];
+					else newAction.multiLineIDs[i - 1] = translationIDs[i];
 				}
 			}
 			return newAction;
+		}
+
+
+#if CAN_USE_LOCALIZATION
+
+		private float Run_Localization ()
+		{
+			if (!isRunning)
+			{
+				stopAction = false;
+				isRunning = true;
+
+				isAwaitingCallback = true;
+				KickStarter.runtimeLanguages.ExtractSpeechMetadata (localizedString, OnGetMetadata);
+				return defaultPauseTime;
+			}
+
+			if (isAwaitingCallback)
+			{
+				return defaultPauseTime;
+			}
+
+			if (isBackground)
+			{
+				isRunning = false;
+				return 0f;
+			}
+
+			if (stopAction || (speech != null && speech.continueState == Speech.ContinueState.Pending))
+			{
+				if (speech != null)
+				{
+					speech.continueState = Speech.ContinueState.Continued;
+				}
+				isRunning = false;
+				stopAction = false;
+				return 0;
+			}
+
+			if (speech == null || !speech.isAlive)
+			{
+				postWaitTime = waitTimeOffset + KickStarter.speechManager.waitTimeOffset;
+				if (postWaitTime <= 0f || (speechWasSkipped && KickStarter.speechManager.ignorePostLineDelayWhenSkipping))
+				{
+					isRunning = false;
+					return 0f;
+				}
+				else
+				{
+					stopAction = true;
+					return defaultPauseTime;
+				}
+			}
+			return defaultPauseTime;
+		}
+		
+		
+		private void Skip_Localization ()
+		{
+			KickStarter.dialog.KillDialog (true, true);
+
+			if (runtimeSpeaker)
+			{
+				if (!noAnimation)
+				{
+					if (runtimeSpeaker.GetAnimEngine () != null)
+					{
+						runtimeSpeaker.GetAnimEngine ().ActionSpeechSkip (this);
+					}
+				}
+			}
+		}
+
+
+		private void OnGetMetadata (SpeechMetadata _speechMetadata, AudioClip audioClip, TextAsset lipsyncData)
+		{
+			gotLocalizedAudio = audioClip;
+			gotLocalizedLipsync = lipsyncData;
+
+			speechMetadata = _speechMetadata;
+			isAwaitingCallback = false;
+			StartSpeech (audioClip, lipsyncData, localizedString.GetLocalizedString ());
+		}
+
+#endif
+
+
+		private void OnStopSpeech(Speech _speech)
+		{
+			if (speech != _speech) return;
+
+#if CAN_USE_LOCALIZATION
+			if (speechMetadata != null)
+			{
+				if (gotLocalizedAudio) speechMetadata.AudioClipReference.ReleaseAsset();
+				if (gotLocalizedLipsync) speechMetadata.LipSyncDataReference.ReleaseAsset();
+				speechMetadata = null;
+			}
+#endif
+
+#if AddressableIsPresent
+			foreach (var audioHandle in audioHandles)
+			{
+				if (audioHandle.IsValid())
+				{
+					Addressables.Release(audioHandle);
+				}
+			}
+			
+			foreach (var lipSyncHandle in lipsyncHandles)
+			{
+				if (lipSyncHandle.IsValid())
+				{
+					Addressables.Release(lipSyncHandle);
+				}
+			}
+#endif
+
+			EventManager.OnStopSpeech_Alt -= OnStopSpeech;
+			EventManager.OnSkipSpeech -= OnSkipSpeech;
+		}
+		
+
+		private void OnSkipSpeech(Speech _speech, bool justCompletingScroll)
+		{
+			if (speech == _speech && !justCompletingScroll)
+			{
+				speechWasSkipped = true;
+			}
 		}
 
 	}

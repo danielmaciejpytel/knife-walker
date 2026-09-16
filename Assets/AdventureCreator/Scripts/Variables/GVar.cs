@@ -862,6 +862,16 @@ namespace AC
 				gameObjectVal = value;
 				textVal = (gameObjectVal) ? gameObjectVal.name : string.Empty;
 
+				val = 0;
+				if (gameObjectVal)
+				{
+					ConstantID constantID = gameObjectVal.GetComponent <ConstantID>();
+					if (constantID)
+					{
+						val = constantID.constantID;
+					}
+				}
+
 				if (originalValue != gameObjectVal && KickStarter.eventManager)
 				{
 					KickStarter.eventManager.Call_OnVariableChange (this);
@@ -1079,6 +1089,8 @@ namespace AC
 				EditorGUILayout.LabelField ("Type: " + type.ToString ());
 			}
 
+			EditorGUI.BeginChangeCheck ();
+
 			switch (type)
 			{
 				case VariableType.Boolean:
@@ -1166,6 +1178,11 @@ namespace AC
 
 				default:
 					break;
+			}
+
+			if (!canEdit && KickStarter.eventManager && EditorGUI.EndChangeCheck ())
+			{
+				KickStarter.eventManager.Call_OnVariableChange (this);
 			}
 
 			switch (location)

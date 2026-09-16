@@ -27,7 +27,7 @@ namespace AC.Templates.GraphicOptions
 		[SerializeField] private GameObject resolutionDropdown = null;
 		[SerializeField] private CanvasGroup advancedOptionsCanvasGroup = null;
 		[SerializeField] private Toggle fullScreenToggle = null;
-		[SerializeField] private GameObject qualityPresetDropdown = null;
+		public GameObject qualityPresetDropdown = null;
 		[SerializeField] private GameObject antiAliasingDropdown = null;
 		[SerializeField] private GameObject textureQualityDropdown = null;
 		[SerializeField] private GameObject vSyncDropdown = null;
@@ -60,7 +60,7 @@ namespace AC.Templates.GraphicOptions
 			GVar gVar = GlobalVariables.GetVariable (globalStringVariable);
 			if (gVar != null && gVar.type == VariableType.String)
 			{
-				GraphicOptionsData graphicOptionsData = new GraphicOptionsData (GetDropdownValue (resolutionDropdown), fullScreenToggle.isOn, IsCustomQuality ? nonCustomQualityLevel : GetDropdownValue (qualityPresetDropdown), IsCustomQuality, GetDropdownValue (antiAliasingDropdown), GetDropdownValue (textureQualityDropdown), GetDropdownValue (vSyncDropdown));
+				GraphicOptionsData graphicOptionsData = new GraphicOptionsData (GetDropdownValue (resolutionDropdown), fullScreenToggle.isOn, !IsCustomQuality ? nonCustomQualityLevel : GetDropdownValue (qualityPresetDropdown), IsCustomQuality, GetDropdownValue (antiAliasingDropdown), GetDropdownValue (textureQualityDropdown), GetDropdownValue (vSyncDropdown));
 				gVar.TextValue = JsonUtility.ToJson (graphicOptionsData);
 				Options.SavePrefs ();
 			}
@@ -138,7 +138,11 @@ namespace AC.Templates.GraphicOptions
 				int resolutionIndex = -1;
 				for (int i = 0; i < Resolutions.Count; i++)
 				{
-					if (ResolutionsAreEqual (Resolutions[i], Screen.currentResolution))
+#if UNITY_2022_3_OR_NEWER
+					if (Resolutions[i].width == Screen.width && Resolutions[i].height == Screen.height && (IgnoreRefreshRates || Mathf.Approximately((float)Resolutions[i].refreshRateRatio.value, (float)Screen.currentResolution.refreshRateRatio.value)))
+#else
+					if (Resolutions[i].width == Screen.width && Resolutions[i].height == Screen.height && (IgnoreRefreshRates || Resolutions[i].refreshRate == Screen.currentResolution.refreshRate))
+#endif
 					{
 						resolutionIndex = i;
 					}
@@ -402,7 +406,7 @@ namespace AC.Templates.GraphicOptions
 		{
 			if (resolutionA.width == resolutionB.width &&
 				resolutionA.height == resolutionB.height &&
-				(ignoreRefreshRates ||
+				(IgnoreRefreshRates ||
 #if UNITY_2022_3_OR_NEWER
 				resolutionA.refreshRateRatio.value == resolutionB.refreshRateRatio.value))
 #else
@@ -418,9 +422,9 @@ namespace AC.Templates.GraphicOptions
 		private string GetResolutionLabel (Resolution resolution)
 		{
 #if UNITY_2022_3_OR_NEWER
-			return resolution.width.ToString () + " x " + resolution.height.ToString () + (ignoreRefreshRates ? string.Empty : (" " + resolution.refreshRateRatio.value.ToString () + " hz"));
+			return resolution.width.ToString () + " x " + resolution.height.ToString () + (IgnoreRefreshRates ? string.Empty : (" " + resolution.refreshRateRatio.value.ToString () + " hz"));
 #else
-			return resolution.width.ToString () + " x " + resolution.height.ToString () + (ignoreRefreshRates ? string.Empty : (" " + resolution.refreshRate.ToString () + " hz"));
+			return resolution.width.ToString () + " x " + resolution.height.ToString () + (IgnoreRefreshRates ? string.Empty : (" " + resolution.refreshRate.ToString () + " hz"));
 #endif
 		}
 
@@ -438,13 +442,16 @@ namespace AC.Templates.GraphicOptions
 		}
 
 
+		private bool IgnoreRefreshRates => ignoreRefreshRates || !Screen.fullScreen;
+
+
 		private List<Resolution> Resolutions
 		{
 			get
 			{
-				#if !UNITY_EDITOR
+#if !UNITY_EDITOR
 				if (resolutions.Count == 0)
-				#endif
+#endif
 				{
 					resolutions.Clear ();
 					for (int i = 0; i < Screen.resolutions.Length; i++)
@@ -454,7 +461,7 @@ namespace AC.Templates.GraphicOptions
 							if (Screen.resolutions[i].height >= minimumResolutionHeight)
 							{
 								bool canAdd = true;
-								if (ignoreRefreshRates)
+								if (IgnoreRefreshRates)
 								{
 									foreach (Resolution resolution in resolutions)
 									{
@@ -520,18 +527,18 @@ namespace AC.Templates.GraphicOptions
 
 		public void Apply (List<Resolution> resolutions)
 		{
-			if (screenResolutionIndex < resolutions.Count)
+			if (screenResolutionIndex >= 0 && resolutions.Count > 0 && screenResolutionIndex < resolutions.Count)
 			{
 				Resolution chosenResolution = resolutions[screenResolutionIndex];
 				Screen.SetResolution (chosenResolution.width, chosenResolution.height, isFullScreen);
 			}
 			else
 			{
-				#if UNITY_EDITOR
+#if UNITY_EDITOR
 				ACDebug.LogWarning ("Invalid resolution index. This may be due to an attempt to set the resolution in the Editor.");
-				#else
-				ACDebug.LogWarning ("Invalid resolution index.");
-				#endif
+#else
+				ACDebug.LogWarning("Invalid resolution index.");
+#endif
 			}
 
 			QualitySettings.SetQualityLevel (qualityPresetIndex, true);

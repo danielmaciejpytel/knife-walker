@@ -11,7 +11,11 @@ namespace AC
 
 		#region Variables
 
-		public int trackInstanceID;
+#if UNITY_6000_5_OR_NEWER
+		public EntityId trackID;
+#else
+		public int trackID;
+#endif
 		public SpeechTrackPlaybackMode playbackMode;
 		private Char speaker;
 		private bool speakerSet;
@@ -72,7 +76,7 @@ namespace AC
 				#if UNITY_EDITOR
 				if (KickStarter.menuPreview)
 				{
-					KickStarter.menuPreview.ClearPreviewSpeech (trackInstanceID);
+					KickStarter.menuPreview.ClearPreviewSpeech (trackID);
 				}
 				#endif
 			}

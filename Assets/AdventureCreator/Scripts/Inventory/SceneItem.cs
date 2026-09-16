@@ -54,7 +54,7 @@ namespace AC
 			ConstantID constantID = GetComponent<ConstantID> ();
 			if (constantID && !constantID.retainInPrefab && constantID.constantID == 0)
 			{
-				int newID = GetInstanceID ();
+				int newID = UnityVersionHandler.GetInstanceID(this);
 				ConstantID[] idScripts = GetComponents<ConstantID> ();
 				foreach (ConstantID idScript in idScripts)
 				{

@@ -14,7 +14,11 @@ namespace AC
 		#if UNITY_EDITOR
 
 		private Menu previewSpeechMenu;
+#if UNITY_6000_5_OR_NEWER
+		private EntityId previewTrackID;
+#else
 		private int previewTrackID;
+#endif
 
 		private MenuManager menuManager;
 		private GUIStyle normalStyle;
@@ -206,9 +210,13 @@ namespace AC
 		/**
 		 * <summary>Begins the preview of a subtitle</summary>
 		 * <param name = "speech">The Speech to preview</param>
-		 * <param name = "trackInstanceID">The Instance ID of the TrackAsset that is playing the speech</param>
+		 * <param name = "trackID">The Instance ID of the TrackAsset that is playing the speech</param>
 		 */
-		public void SetPreviewSpeech (Speech speech, int trackInstanceID)
+#if UNITY_6000_5_OR_NEWER
+		public void SetPreviewSpeech (Speech speech, EntityId trackID)
+#else
+		public void SetPreviewSpeech (Speech speech, int trackID)
+#endif
 		{
 			if (speech != null && KickStarter.menuManager != null && KickStarter.speechManager)
 			{
@@ -219,7 +227,7 @@ namespace AC
 
 				if (previewSpeechMenu != null)
 				{
-					if (trackInstanceID != previewTrackID)
+					if (trackID != previewTrackID)
 					{
 						RemovePreviewSpeechMenu ();
 						previewSpeechMenu = KickStarter.menuManager.CreatePreviewMenu (KickStarter.speechManager.previewMenuName);
@@ -228,7 +236,7 @@ namespace AC
 					if (previewSpeechMenu != null)
 					{
 						previewSpeechMenu.SetSpeech (speech);
-						previewTrackID = trackInstanceID;
+						previewTrackID = trackID;
 					}
 				}
 				else
@@ -241,11 +249,15 @@ namespace AC
 
 		/**
 		 * <summary>Ends the preview of a subtitle</summary>
-		 * <param name = "trackInstanceID">The Instance ID of the TrackAsset that is playing the speech</param>
+		 * <param name = "trackID">The Instance ID of the TrackAsset that is playing the speech</param>
 		 */
-		public void ClearPreviewSpeech (int trackInstanceID)
+#if UNITY_6000_5_OR_NEWER
+		public void ClearPreviewSpeech (EntityId trackID)
+#else
+		public void ClearPreviewSpeech (int trackID)
+#endif
 		{
-			if (previewTrackID == trackInstanceID)
+			if (previewTrackID == trackID)
 			{
 				RemovePreviewSpeechMenu ();
 			}

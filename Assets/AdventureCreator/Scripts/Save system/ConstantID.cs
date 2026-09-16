@@ -99,6 +99,15 @@ namespace AC
 
 
 		#region ProtectedFunctions
+		
+		protected void PreventStartStateIfPersistent()
+		{
+			if (gameObject.IsPersistent ())
+			{
+				EventManager.OnInitialiseScene -= OnInitialiseScene;
+			}
+		}
+		
 
 		protected bool[] StringToBoolArray (string _string)
 		{
@@ -449,7 +458,7 @@ namespace AC
 				return;
 			}
 
-			constantID = GetInstanceID ();
+			constantID = UnityVersionHandler.GetInstanceID(this);
 			if (constantID < 0)
 			{
 				constantID *= -1;

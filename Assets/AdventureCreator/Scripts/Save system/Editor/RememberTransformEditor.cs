@@ -23,7 +23,6 @@ namespace AC
 			{
 				_target.saveScenePresence = CustomGUILayout.Toggle ("Save scene presence?", _target.saveScenePresence, "", "If True, the GameObject's change in scene presence should be recorded");
 			}
-			_target.loadOrder = CustomGUILayout.IntField ("Relative load order:", _target.loadOrder, "", "The order, relative to other Remember Transform components, that data is loaded in");
 
 			if (_target.saveScenePresence)
 			{
@@ -33,6 +32,14 @@ namespace AC
 				}
 				else
 				{
+					if (!UnityVersionHandler.IsPrefabFile (_target) && KickStarter.settingsManager && !KickStarter.settingsManager.reloadSceneWhenLoading)
+					{
+						EditorGUILayout.HelpBox ("If the object is present in the scene file and removed at runtime, check 'Always reload scene when loading a save file?' in the Settings Manager to skip the processes outlined below.", MessageType.Warning);
+					}
+					else if (!UnityVersionHandler.IsPrefabFile (_target) && KickStarter.settingsManager && KickStarter.settingsManager.reloadSceneWhenLoading)
+					{
+						EditorGUILayout.HelpBox ("If the object is present in the scene file and removed at runtime, the processes outlined below can be ignored.", MessageType.Warning);
+					}
 					#if AddressableIsPresent
 					if (KickStarter.settingsManager.saveAssetReferencesWithAddressables)
 					{
@@ -49,6 +56,7 @@ namespace AC
 					}
 				}
 			}
+			_target.loadOrder = CustomGUILayout.IntField ("Relative load order:", _target.loadOrder, "", "The order, relative to other Remember Transform components, that data is loaded in");
 			CustomGUILayout.EndVertical ();
 
 			SharedGUI ();

@@ -1,7 +1,7 @@
 ﻿/*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2025
  *	
  *	"PlayerPrefab.cs"
  * 
@@ -383,6 +383,10 @@ namespace AC
 #endif
 				{
 					playerOb = (Player) CustomGUILayout.ObjectField <Player> ("Player prefab:", playerOb, false, "AC.KickStarter.settingsManager.player", "The player prefab, to spawn in at runtime");
+					if (playerOb == null && CustomGUILayout.ClickedCreateButton ())
+					{
+						CharacterWizardWindow.InitForPlayer (null, ID);
+					}
 				}
 			}
 			else
@@ -416,6 +420,10 @@ namespace AC
 #endif
 				{
 					playerOb = (Player) CustomGUILayout.ObjectField<Player> (label, playerOb, false, "AC.KickStarter.settingsManager.players");
+					if (playerOb == null && CustomGUILayout.ClickedCreateButton ())
+					{
+						CharacterWizardWindow.InitForPlayer (null, ID);
+					}
 				}
 
 				if (GUILayout.Button (string.Empty, CustomStyles.IconCog))

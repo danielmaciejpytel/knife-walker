@@ -1,7 +1,7 @@
 ﻿/*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2025
  *	
  *	"SpriteDirectionData.cs"
  * 
@@ -22,7 +22,7 @@ namespace AC
 
 		#region Variables
 
-		private enum Directions { None, Four, Eight, Custom }
+		private enum Directions { None, Four, Eight, Custom };
 		[SerializeField] private Directions directions = Directions.Four;
 		[SerializeField] private bool down = true, left = true, right = true, up = true, downLeft = false, upLeft = false, upRight = false, downRight = false;
 		[SerializeField] private SpriteDirection[] spriteDirections = new SpriteDirection[0];

@@ -66,7 +66,7 @@ namespace AC
 		 */
 		public void SetAlpha (float _alpha)
 		{
-			float remappedAlpha = Remap (_alpha, 0f, 1f, minAlpha, maxAlpha);
+			float remappedAlpha = AdvGame.Remap (_alpha, 0f, 1f, minAlpha, maxAlpha);
 
 			if (affectChildren && childSprites != null)
 			{
@@ -89,7 +89,7 @@ namespace AC
 		public float GetAlpha ()
 		{
 			float _alpha = spriteRenderer.color.a;
-			float remappedAlpha = Remap (_alpha, minAlpha, maxAlpha, 0f, 1f);
+			float remappedAlpha = AdvGame.Remap (_alpha, minAlpha, maxAlpha, 0f, 1f);
 			return Mathf.Clamp01 (remappedAlpha);
 		}
 
@@ -169,12 +169,6 @@ namespace AC
 
 
 		#region ProtectedFunctions
-
-		protected float Remap (float value, float from1, float to1, float from2, float to2)
-		{
-			return (value - from1) / (to1 - from1) * (to2 - from2) + from2;
-		}
-
 
 		protected void SetSpriteAlpha (SpriteRenderer _spriteRenderer, float alpha)
 		{

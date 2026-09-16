@@ -65,6 +65,7 @@ namespace AC
 		private const float propertiesBoxWidth = 360f;
 		private const float scrollbarSelectedSizeFactor = 2.5f;
 
+		private bool switchedWindowTarget;
 		private bool viewingAllToggle;
 
 
@@ -146,10 +147,26 @@ namespace AC
 			zoom = 1f;
 			showProperties = false;
 			titleContent.text = "ActionList Editor";
+			
+			if (KickStarter.actionsManager.allowMultipleActionListWindows)
+			{
+				if (_data.targetAsset)
+				{
+					titleContent.text = _data.targetAsset.name;
+				}
+				else if (_data.target)
+				{
+					titleContent.text = _data.target.gameObject.name;
+				}
+			}
+
 			windowData = _data;
 			Repaint ();
 			Show ();
 			UpdateScrollLimits ();
+			UpdateSearchResults ();
+
+			switchedWindowTarget = true;
 		}
 
 
@@ -188,6 +205,8 @@ namespace AC
 		private bool hasManagerMismatch;
 		private void OnGUI ()
 		{
+			switchedWindowTarget = false;
+
 			if (KickStarter.actionsManager != actionsManager && Event.current.type == EventType.Layout)
 			{
 				actionsManager = KickStarter.actionsManager;
@@ -257,6 +276,7 @@ namespace AC
 				if (CanvasWidth > 0f)
 				{
 					DrawGrid ();
+					SearchGUI (true);
 					PanAndZoomWindow (Event.current);
 					DrawGroups (Event.current);
 					NodesGUI (true, Event.current);
@@ -287,6 +307,7 @@ namespace AC
 					if (CanvasWidth > 0f)
 					{
 						DrawGrid ();
+						SearchGUI (true);
 						PanAndZoomWindow (Event.current);
 						DrawGroups (Event.current);
 						NodesGUI (false, Event.current);
@@ -369,6 +390,7 @@ namespace AC
 				{
 					ScrollPosition -= delta;
 				}
+				isPanning = true;
 				UseEvent (e);
 			}
 			else if (e.type == EventType.MouseDrag && e.button == 2)
@@ -431,7 +453,7 @@ namespace AC
 			if (e.type == EventType.Repaint && isPanning)
 			{
 				UpdateGroupRects ();
-				ChangeCursor (MouseCursor.Pan);
+				//ChangeCursor (MouseCursor.Pan);
 			}
 		}
 
@@ -967,9 +989,16 @@ namespace AC
 
 
 		private Rect SearchRect { get { return new Rect (position.width - searchBoxWidth - 20, 25, searchBoxWidth, 20); } }
+		
+		
+		private void UpdateSearchResults()
+		{
+			searchResultIndex = -1;
+			searchResultLength = Search (searchText, searchResultIndex);
+		}
 
 
-		private void SearchGUI ()
+		private void SearchGUI (bool overlayOnly = false)
 		{
 			if (showSearchBox)
 			{
@@ -982,13 +1011,12 @@ namespace AC
 				}
 
 				searchText = GUI.TextField (searchRect, searchText);
-				if (oldSearchText != searchText)
+				if (!overlayOnly && oldSearchText != searchText)
 				{
-					searchResultIndex = -1;
-					searchResultLength = Search (searchText, searchResultIndex);
+					UpdateSearchResults();
 				}
-
-				if (!string.IsNullOrEmpty (searchText))
+				
+				if (!overlayOnly && !string.IsNullOrEmpty (searchText))
 				{
 					Rect infoRect = new Rect (SearchRect.position + new Vector2 (0, SearchRect.height), new Vector2 (SearchRect.size.x, SearchRect.size.y));
 
@@ -1009,6 +1037,7 @@ namespace AC
 					searchLeftRect.position = new Vector2 (searchRect.max.x, searchLeftRect.position.y + 1);
 					if (GUI.Button (searchLeftRect, new GUIContent ("<"), EditorStyles.miniButtonLeft))
 					{
+						if (!overlayOnly) return;
 						searchResultIndex--;
 						if (searchResultIndex < -1) searchResultIndex = searchResultLength - 1;
 
@@ -1019,6 +1048,7 @@ namespace AC
 					searchRightRect.position = new Vector2 (searchLeftRect.position.x + searchLeftRect.width, searchLeftRect.position.y);
 					if (GUI.Button (searchRightRect, new GUIContent (">"), EditorStyles.miniButtonRight))
 					{
+						if (!overlayOnly) return;
 						searchResultIndex++;
 						if (searchResultIndex >= searchResultLength) searchResultIndex = -1;
 
@@ -1185,7 +1215,7 @@ namespace AC
 					viewingAllToggle = !viewingAllToggle;
 				}
 
-				if (GUI.Button (new Rect (position.width - 202, 3, 100, 20), "Ping object", EditorStyles.miniButtonMid))
+				if (GUI.Button (new Rect (position.width - 202, 3, 100, 20), "Ping asset", EditorStyles.miniButtonMid))
 				{
 					if (windowData.targetAsset != null)
 					{
@@ -1570,12 +1600,15 @@ namespace AC
 				GUI.enabled = true;
 			}
 
+			if (switchedWindowTarget) return;
+
 			_action.SkipActionGUI (Actions, true);
 
-			_action.isDisplayed = EditorGUI.Foldout (new Rect (10, 1, 20, 16), _action.isDisplayed, string.Empty);
+			_action.isDisplayed = EditorGUI.Foldout (new Rect (10, 1, _action.NodeRect.width - 60, 16), _action.isDisplayed, string.Empty);
 
 			if (GUI.Button (new Rect (_action.NodeRect.width - 27, 3, 16, 16), " ", CustomStyles.IconCogNode))
 			{
+				menuPosition = new Vector2(_action.NodeRect.width - 27, 30) + _action.NodeRect.position;
 				CreateNodeMenu (i, _action);
 			}
 
@@ -1592,7 +1625,7 @@ namespace AC
 
 			_action.SkipActionGUI (Actions, false);
 
-			_action.isDisplayed = EditorGUI.Foldout (new Rect (10, 1, 20, 16), _action.isDisplayed, string.Empty);
+			_action.isDisplayed = EditorGUI.Foldout (new Rect (10, 1, _action.NodeRect.width - 60, 16), _action.isDisplayed, string.Empty);
 
 			if (_action.showComment)
 			{
@@ -1703,7 +1736,7 @@ namespace AC
 		{
 			if (e.type == EventType.Repaint)
 			{
-				//UpdateGroupRects ();
+				UpdateGroupRects ();
 
 				foreach (var group in Groups)
 				{
@@ -2107,7 +2140,7 @@ namespace AC
 				bool clickedGroup = false;
 				foreach (var group in Groups)
 				{
-					if (IsMouseOverGroupEdge (e.mousePosition + new Vector2 (0f, 24), group.rect))
+					if (IsMouseOverGroupEdge (e.mousePosition * Zoom + new Vector2 (0f, 24), group.rect))
 					{
 						CreateGroupMenu (group);
 						clickedGroup = true;
@@ -2491,6 +2524,7 @@ namespace AC
 
 			menu.AddSeparator (string.Empty);
 			menu.AddItem (new GUIContent ("Rename group"), false, GroupCallback, "Rename group");
+			menu.AddItem (new GUIContent ("Auto-arrange"), false, GroupCallback, "Auto-arrange");
 
 			Matrix4x4 originalMatrix = GUI.matrix;
 			GUI.matrix = GetMenuScaleMatrix ();
@@ -2609,6 +2643,14 @@ namespace AC
 				rect.position += new Vector2 (position.x, position.y + 20);
 				PopupWindow.Show (rect, new InputTextPopUp (groupContext.label, rect, OnSetGroupLabel));
 			}
+			else if (objString == "Auto-arrange")
+			{
+				foreach (var action in Actions)
+				{
+					action.isMarked = action.groupID == groupContext.ID;
+				}
+				AutoArrange (true);
+			}
 
 			if (doUndo)
 			{
@@ -2652,7 +2694,7 @@ namespace AC
 				{
 					string label = actionsManager.GetFavouriteActionLabel (j);
 					if (string.IsNullOrEmpty (label)) continue;
-					menu.AddItem (new GUIContent ("Paste favourite/Slot " + j.ToString () + " (" + label + ")"), false, EmptyCallback, "Paste Favourite " + j.ToString ());
+					menu.AddItem (new GUIContent ("Paste favourite/" + j.ToString () + ": " + label), false, EmptyCallback, "Paste Favourite " + j.ToString ());
 				}
 			}
 
@@ -2676,6 +2718,9 @@ namespace AC
 				//menu.AddSeparator (string.Empty);
 				menu.AddItem (new GUIContent ("Comment/Comment selected"), false, EmptyCallback, "Comment selected");
 				menu.AddItem (new GUIContent ("Comment/Uncomment selected"), false, EmptyCallback, "Uncomment selected");
+				
+				menu.AddItem (new GUIContent ("Enabled/Enable selected"), false, EmptyCallback, "Enable selected");
+				menu.AddItem (new GUIContent ("Enabled/Disable selected"), false, EmptyCallback, "Disable selected");
 				//menu.AddSeparator (string.Empty);
 				menu.AddItem (new GUIContent ("Group/Group selected"), false, EmptyCallback, "Group selected");
 				menu.AddItem (new GUIContent ("Group/Ungroup selected"), false, EmptyCallback, "Ungroup selected");
@@ -2769,6 +2814,15 @@ namespace AC
 			}
 			menu.AddItem (new GUIContent ("Delete"), false, EmptyCallback, "Delete selected");
 
+			if (_action.isEnabled)
+			{
+				menu.AddItem (new GUIContent ("Disable"), false, EmptyCallback, "Disable selected");
+			}
+			else
+			{
+				menu.AddItem (new GUIContent ("Enable"), false, EmptyCallback, "Enable selected");
+			}
+
 			if (i > 0)
 			{
 				menu.AddSeparator (string.Empty);
@@ -2779,6 +2833,11 @@ namespace AC
 			menu.AddItem (new GUIContent ("Toggle breakpoint"), false, EmptyCallback, "Toggle breakpoint");
 			menu.AddItem (new GUIContent ("Toggle comment"), false, EmptyCallback, "Toggle comment");
 			menu.AddItem (new GUIContent ("Toggle output socket(s)"), false, EmptyCallback, "Toggle output socket(s)");
+
+			if (_action.endings != null && _action.endings.Count > 0)
+			{
+				menu.AddItem (new GUIContent ("View/Connected"), false, EmptyCallback, "View/Connected");
+			}
 
 			menu.AddItem (new GUIContent ("Colour/Default"), false, EmptyCallback, "ColorDefault");
 			menu.AddItem (new GUIContent ("Colour/Blue"), false, EmptyCallback, "ColorBlue");
@@ -2792,7 +2851,7 @@ namespace AC
 			{
 				string label = actionsManager.GetFavouriteActionLabel (j);
 				if (!string.IsNullOrEmpty (label)) label = " (" + label + ")";
-				menu.AddItem (new GUIContent ("Favourite/Slot " + j.ToString () + label), false, EmptyCallback, "Set favourite" + j.ToString ());
+				menu.AddItem (new GUIContent ("Favourite/" + j.ToString () + ": " + label), false, EmptyCallback, "Set favourite" + j.ToString ());
 			}
 
 			menu.AddSeparator (string.Empty);
@@ -3083,6 +3142,26 @@ namespace AC
 					}
 				}
 			}
+			else if (objString == "Enable selected")
+			{
+				foreach (Action action in actionList)
+				{
+					if (action != null && action.isMarked)
+					{
+						action.isEnabled = true;
+					}
+				}
+			}
+			else if (objString == "Disable selected")
+			{
+				foreach (Action action in actionList)
+				{
+					if (action != null && action.isMarked)
+					{
+						action.isEnabled = false;
+					}
+				}
+			}
 			else if (objString == "Group selected")
 			{
 				int firstFoundGroup = 0;
@@ -3334,6 +3413,46 @@ namespace AC
 					{
 						action.showOutputSockets = !action.showOutputSockets;
 						action.isMarked = false;
+					}
+				}
+			}
+			else if (objString == "View/Connected")
+			{
+				for (int i = 0; i < actionList.Count; i++)
+				{
+					Action action = actionList[i];
+					if (action != null && action.isMarked)
+					{
+						if (action.endings != null && action.endings.Count > 0)
+						{
+							UnmarkAll ();
+
+							foreach (var ending in action.endings)
+							{
+								int index = -1;
+								switch (ending.resultAction)
+								{
+									case ResultAction.Continue:
+										index = i+1;
+										break;
+
+									case ResultAction.Skip:
+										index = ending.skipAction;
+										break;
+									
+									default:
+										break;
+								}
+
+								if (index >= 0 && index < actionList.Count)
+								{
+									actionList[index].isMarked = true;
+								}
+							}
+						}
+
+						FocusOnActions ();
+						break;
 					}
 				}
 			}

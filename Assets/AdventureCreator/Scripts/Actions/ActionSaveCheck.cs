@@ -115,7 +115,7 @@ namespace AC
 					break;
 
 				case SaveCheck.IsSavingPossible:
-					return PlayerMenus.IsSavingLocked (this) ? 1 : 0;
+					return PlayerMenus.IsSavingLocked (this, true) ? 1 : 0;
 
 				default:
 					return 1;

@@ -877,7 +877,11 @@ namespace AC
 
 		private void OnSetPlayer (Player player)
 		{
-			if (dragMode == DragMode.LockToTrack && track && player)
+			if (dragMode != DragMode.LockToTrack)
+			{
+				LimitPlayerCollisions ();
+			}
+			else if (track && player)
 			{
 				Collider[] dragColliders = GetComponentsInChildren<Collider> ();
 				Collider[] playerColliders = player.gameObject.GetComponentsInChildren<Collider> ();

@@ -60,6 +60,8 @@ namespace AC
 
 		protected override void OnInitialiseScene ()
 		{
+			PreventStartStateIfPersistent();
+			
 			bool state = startState == AC_OnOff.On;
 
 			if (Renderer)
@@ -98,6 +100,19 @@ namespace AC
 
 			if (Renderer)
 			{
+				if (saveColour)
+				{
+					SpriteRenderer spriteRenderer = Renderer as SpriteRenderer;
+					if (spriteRenderer)
+					{
+						Color _color = spriteRenderer.color;
+						visibilityData.colourR = _color.r;
+						visibilityData.colourG = _color.g;
+						visibilityData.colourB = _color.b;
+						visibilityData.colourA = _color.a;
+					}
+				}
+
 				SpriteFader spriteFader = Renderer.GetComponent<SpriteFader> ();
 				if (spriteFader)
 				{
@@ -118,19 +133,7 @@ namespace AC
 					}
 					visibilityData.fadeAlpha = Renderer.GetComponent<SpriteRenderer> ().color.a;
 				}
-				else if (saveColour)
-				{
-					SpriteRenderer spriteRenderer = Renderer as SpriteRenderer;
-					if (spriteRenderer)
-					{
-						Color _color = spriteRenderer.color;
-						visibilityData.colourR = _color.r;
-						visibilityData.colourG = _color.g;
-						visibilityData.colourB = _color.b;
-						visibilityData.colourA = _color.a;
-					}
-				}
-
+				
 				FollowTintMap followTintMap = Renderer.GetComponent<FollowTintMap> ();
 				if (followTintMap)
 				{
@@ -179,6 +182,16 @@ namespace AC
 			}
 			SavePrevented = data.savePrevented; if (savePrevented) return;
 
+			if (saveColour)
+			{
+				SpriteRenderer spriteRenderer = GetComponent <SpriteRenderer>();
+				if (spriteRenderer)
+				{
+					Color _color = new Color (data.colourR, data.colourG, data.colourB, data.colourA);
+					spriteRenderer.color = _color;
+				}
+			}
+
 			SpriteFader spriteFader = GetComponent <SpriteFader>();
 			if (spriteFader)
 			{
@@ -197,18 +210,6 @@ namespace AC
 				{
 					spriteFader.EndFade ();
 					spriteFader.SetAlpha (data.fadeAlpha);
-				}
-			}
-			else
-			{
-				if (saveColour)
-				{
-					SpriteRenderer spriteRenderer = GetComponent <SpriteRenderer>();
-					if (spriteRenderer)
-					{
-						Color _color = new Color (data.colourR, data.colourG, data.colourB, data.colourA);
-						spriteRenderer.color = _color;
-					}
 				}
 			}
 			
@@ -261,7 +262,7 @@ namespace AC
 			startState = (AC_OnOff) CustomGUILayout.EnumPopup ("Visibility on start:", startState, "", "The Renderer's enabled state when the game begins");
 			affectChildren = CustomGUILayout.Toggle ("Affect children?", affectChildren, "", "If True, child Renderers should be affected as well");
 
-			if (rendererToSave && rendererToSave.GetComponent<SpriteFader> () == null && rendererToSave.GetComponent<SpriteRenderer> ())
+			if (rendererToSave && rendererToSave.GetComponent<SpriteRenderer> ())
 			{
 				saveColour = CustomGUILayout.Toggle ("Save colour/alpha?", saveColour, "", "If True, the sprite's colour/alpha will be saved");
 			}

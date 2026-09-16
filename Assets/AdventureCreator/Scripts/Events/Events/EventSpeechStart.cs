@@ -3,6 +3,7 @@
 namespace AC
 {
 
+	[System.Serializable]
 	public class EventSpeechStart : EventBase
 	{
 
@@ -65,7 +66,7 @@ namespace AC
 		{
 			if (startStop == StartStop.Stop)
 			{
-				if (speech.speaker && speakerType == SpeakerType.Narrator)
+				if (speech.speaker && speakerType == SpeakerType.Character)
 				{
 					Run (new object[] { speech.speaker.gameObject });
 				}

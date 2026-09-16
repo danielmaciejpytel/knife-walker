@@ -303,6 +303,8 @@ namespace AC
 				collectedDocumentsData.Append (documentInstance.lastOpenPage);
 				collectedDocumentsData.Append (SaveSystem.colon);
 				collectedDocumentsData.Append (documentInstance.hasBeenViewed ? 1 : 0);
+				collectedDocumentsData.Append (SaveSystem.colon);
+				collectedDocumentsData.Append (documentInstance.HiddenIndicesData);
 				collectedDocumentsData.Append (SaveSystem.pipe);
 			}
 			if (collectedDocuments.Count > 0)
@@ -362,6 +364,12 @@ namespace AC
 											{
 												documentInstance.hasBeenViewed = _hasBeenViewed == 1;
 											}
+										}
+										
+										if (chunkArray.Length >= 4)
+										{
+											string visData = chunkArray[3];
+											documentInstance.HiddenIndicesData = visData;
 										}
 									}
 

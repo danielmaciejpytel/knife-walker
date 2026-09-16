@@ -211,18 +211,21 @@ namespace AC
 
 				if (parameterID < 0)
 				{
-					if (location != VariableLocation.Component || variables)
+					if (GUILayout.Button ("Auto-create " + location.ToString () + " variable"))
 					{
-						if (GUILayout.Button ("Auto-create " + location.ToString () + " variable"))
+						AutoCreateVariableWindow.Init ("Sequence/New integer", location, variables, VariableType.Integer, this);
+						
+						/*GVar newVariable = AutoCreateVariableWindow.CreateVariable("Sequence/New integer", VariableType.Integer, location, variables);					
+						if (newVariable != null)
 						{
-							AutoCreateVariableWindow.Init ("Sequence/New integer", location, variables, VariableType.Integer, this);
-						}
+							variableID = newVariable.id;
+						}*/
 					}
 				}
 			}
 		}
-
-
+		
+		
 		private int ShowVarGUI (int ID)
 		{
 			switch (location)

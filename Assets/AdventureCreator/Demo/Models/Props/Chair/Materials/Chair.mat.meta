@@ -4,3 +4,10 @@ NativeFormatImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 11896
+  packageName: Adventure Creator
+  packageVersion: 1.86.6
+  assetPath: Assets/AdventureCreator/Demo/Models/Props/Chair/Materials/Chair.mat
+  uploadId: 987950

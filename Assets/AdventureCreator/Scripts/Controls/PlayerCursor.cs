@@ -169,7 +169,7 @@ namespace AC
 					{
 						showCursor = false;
 					}
-					else if (KickStarter.stateHandler.IsInGameplay () || KickStarter.stateHandler.gameState == GameState.DialogOptions)
+					else if ((KickStarter.stateHandler.IsInGameplay () || KickStarter.stateHandler.gameState == GameState.DialogOptions) && KickStarter.cursorManager.cursorDisplay == CursorDisplay.Always)
 					{
 						showCursor = true;
 					}
@@ -927,11 +927,11 @@ namespace AC
 				Color backupColor = GUI.color;
 				Color tempColor = GUI.color;
 				
+				DrawIcon (AdvGame.GUIBox (KickStarter.playerInput.GetMousePosition () + KickStarter.cursorManager.inventoryCursorOffset, KickStarter.cursorManager.inventoryCursorSize), invInstance.Tex);
 				tempColor.a = pulse;
 				GUI.color = tempColor;
 				DrawIcon (AdvGame.GUIBox (KickStarter.playerInput.GetMousePosition () + KickStarter.cursorManager.inventoryCursorOffset, KickStarter.cursorManager.inventoryCursorSize), invInstance.ActiveTex);
 				GUI.color = backupColor;
-				DrawIcon (AdvGame.GUIBox (KickStarter.playerInput.GetMousePosition () + KickStarter.cursorManager.inventoryCursorOffset, KickStarter.cursorManager.inventoryCursorSize), invInstance.Tex);
 			}
 		}
 		
@@ -1359,6 +1359,10 @@ namespace AC
 				limitCursorToMenu = value;
 			}
 		}
+
+
+		/** The Unity UI-based cursor object, if rendering is set to Unity UI */
+		public GameObject UICursor => uiCursor;
 
 
 		/**

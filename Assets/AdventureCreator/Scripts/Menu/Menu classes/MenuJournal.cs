@@ -1,7 +1,7 @@
 ﻿/*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2026
  *	
  *	"MenuJournal.cs"
  * 
@@ -111,18 +111,11 @@ namespace AC
 		
 		private void CopyJournal (MenuJournal _element, bool fromEditor, bool ignoreUnityUI)
 		{
-			if (ignoreUnityUI)
-			{
-				uiText = null;
-			}
-			else
-			{
-				uiText = _element.uiText;
-				#if TextMeshProIsPresent
-				uiTextTMP = _element.uiTextTMP;
-				#endif
-			}
-
+			uiText = null;
+			#if TextMeshProIsPresent
+			uiTextTMP = null;
+			#endif
+			
 			pages = new List<JournalPage>();
 			foreach (JournalPage page in _element.pages)
 			{
@@ -206,20 +199,41 @@ namespace AC
 
 		/**
 		 * <summary>Gets the currently-viewed page number.</summary>
-		 * <returns>The currently-viewed page number</returms>
+		 * <returns>The currently-viewed page number</returns>
 		 */
 		public int GetCurrentPageNumber ()
 		{
+			if (journalType == JournalType.DisplayExistingJournal)
+			{
+				if (otherJournal != null)
+				{
+					return otherJournal.showPage + pageOffset;
+				}
+				return 0;
+			}
 			return showPage;
 		}
 
 
 		/**
 		 * <summary>Gets the currently-viewed page.</summary>
-		 * <returns>The currently-viewed page</returms>
+		 * <returns>The currently-viewed page</returns>
 		 */
 		public JournalPage GetCurrentPage ()
 		{
+			if (journalType == JournalType.DisplayExistingJournal)
+			{
+				if (otherJournal != null)
+				{
+					int _pageIndex = otherJournal.showPage + pageOffset - 1;
+					if (_pageIndex >= 0 && _pageIndex < otherJournal.pages.Count)
+					{
+						return otherJournal.pages[_pageIndex];
+					}
+				}
+				return null;
+			}
+
 			int pageIndex = showPage - 1;
 			if (pageIndex >= 0 && pageIndex < pages.Count)
 			{
@@ -236,6 +250,15 @@ namespace AC
 		 */
 		public int GetTotalNumberOfPages ()
 		{
+			if (journalType == JournalType.DisplayExistingJournal)
+			{
+				if (otherJournal != null)
+				{
+					return otherJournal.pages.Count;
+				}
+				return 0;
+			}
+
 			if (pages != null)
 			{
 				return pages.Count;
@@ -578,7 +601,7 @@ namespace AC
 				if (DocumentInstance.IsValid (DocumentInstance))
 				{
 					ownDocumentInstance = DocumentInstance;
-					pages = ownDocumentInstance.Document.pages;
+					pages = ownDocumentInstance.GetVisiblePages();
 					showPage = KickStarter.runtimeDocuments.GetLastOpenPage (ownDocumentInstance);
 				}
 			}
@@ -610,7 +633,7 @@ namespace AC
 					if (DocumentInstance.IsValid (DocumentInstance) && ownDocumentInstance != DocumentInstance)
 					{
 						ownDocumentInstance = DocumentInstance;
-						pages = ownDocumentInstance.Document.pages;
+						pages = ownDocumentInstance.GetVisiblePages();
 						showPage = KickStarter.runtimeDocuments.GetLastOpenPage (ownDocumentInstance);
 					}
 				}
@@ -890,6 +913,12 @@ namespace AC
 				ACDebug.LogWarning ("The journal '" + title + "' cannot be modified - instead its linked journal (" + otherJournalTitle + ") must be modified instead.");
 				return;
 			}
+			
+			if (journalType == JournalType.DisplayActiveDocument)
+			{
+				ACDebug.LogWarning ("The journal '" + title + "' cannot be modified.");
+				return;
+			}
 
 			if (pages.Count == 0)
 			{
@@ -934,6 +963,12 @@ namespace AC
 			if (journalType == JournalType.DisplayExistingJournal)
 			{
 				ACDebug.LogWarning ("The journal '" + title + "' cannot be modified - instead its linked journal (" + otherJournalTitle + ") must be modified instead.");
+				return;
+			}
+			
+			if (journalType == JournalType.DisplayActiveDocument)
+			{
+				ACDebug.LogWarning ("The journal '" + title + "' cannot be modified.");
 				return;
 			}
 
@@ -1085,6 +1120,37 @@ namespace AC
 			lineID = _lineID;
 			text = _text;
 			texture = _texture;
+		}
+
+	}
+	
+	
+	[System.Serializable]
+	public class DocumentPage : JournalPage
+	{
+
+		public bool isHiddenByDefault;
+
+
+		public DocumentPage ()
+		{ }
+
+
+		public DocumentPage (DocumentPage documentPage)
+		{
+			lineID = documentPage.lineID;
+			text = documentPage.text;
+			texture = documentPage.texture;
+			isHiddenByDefault = documentPage.isHiddenByDefault;
+		}
+
+
+		public DocumentPage (int _lineID, string _text, Texture2D _texture = null, bool _isHiddenByDefault = false)
+		{
+			lineID = _lineID;
+			text = _text;
+			texture = _texture;
+			isHiddenByDefault = _isHiddenByDefault;
 		}
 
 	}

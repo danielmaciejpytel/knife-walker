@@ -134,7 +134,7 @@ namespace AC
 				}
 			}
 
-			ComponentField ("Track (optional):", ref dragTrack, ref dragConstantID, parameters, ref dragTrackParameterID);
+			ComponentField ("Track (optional):", ref dragTrack, ref dragTrackConstantID, parameters, ref dragTrackParameterID);
 
 			method = (TrackCheckMethod) EditorGUILayout.EnumPopup ("Method:", method);
 			if (method == TrackCheckMethod.PositionValue)
@@ -197,6 +197,7 @@ namespace AC
 		public override void AssignConstantIDs (bool saveScriptsToo, bool fromAssetFile)
 		{
 			dragConstantID = AssignConstantID<Moveable_Drag> (dragObject, dragConstantID, dragParameterID);
+			dragTrackConstantID = AssignConstantID<DragTrack> (dragTrack, dragTrackConstantID, dragTrackParameterID);
 		}
 
 
@@ -216,6 +217,8 @@ namespace AC
 			{
 				if (dragObject && dragObject.gameObject == gameObject) return true;
 				if (dragConstantID == id && id != 0) return true;
+				if (dragTrack && dragTrack.gameObject == gameObject) return true;
+				if (dragTrackConstantID == id && id != 0) return true;
 			}
 			return base.ReferencesObjectOrID (gameObject, id);
 		}

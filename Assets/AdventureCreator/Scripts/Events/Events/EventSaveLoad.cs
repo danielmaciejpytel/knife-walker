@@ -3,6 +3,7 @@
 namespace AC
 {
 
+	[System.Serializable]
 	public class EventSaveLoad : EventBase
 	{
 

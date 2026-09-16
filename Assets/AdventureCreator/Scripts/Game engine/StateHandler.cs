@@ -1,7 +1,7 @@
 /*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2026
  *	
  *	"StateHandler.cs"
  * 
@@ -39,7 +39,6 @@ namespace AC
 		protected bool interactionIsOff = false;
 		protected bool draggablesIsOff = false;
 		protected bool menuIsOff = false;
-		protected bool movementIsOff = false;
 		protected bool cameraIsOff = false;
 		protected bool triggerIsOff = false;
 		protected bool playerIsOff = false;
@@ -49,23 +48,51 @@ namespace AC
 		protected bool runAtLeastOnce = false;
 		protected KickStarter activeKickStarter = null;
 
-		protected HashSet<ArrowPrompt> arrowPrompts = new HashSet<ArrowPrompt>();
-		protected HashSet<DragBase> dragBases = new HashSet<DragBase>();
-		protected HashSet<Parallax2D> parallax2Ds = new HashSet<Parallax2D>();
-		protected HashSet<Hotspot> hotspots = new HashSet<Hotspot>();
-		protected HashSet<Highlight> highlights = new HashSet<Highlight>();
-		protected HashSet<AC_Trigger> triggers = new HashSet<AC_Trigger>();
-		protected HashSet<_Camera> cameras = new HashSet<_Camera>();
-		protected HashSet<Sound> sounds = new HashSet<Sound>();
-		protected HashSet<Char> characters = new HashSet<Char>();
-		protected HashSet<FollowSortingMap> followSortingMaps = new HashSet<FollowSortingMap>();
-		protected HashSet<NavMeshBase> navMeshBases = new HashSet<NavMeshBase>();
-		protected HashSet<SortingMap> sortingMaps = new HashSet<SortingMap>();
-		protected HashSet<BackgroundCamera> backgroundCameras = new HashSet<BackgroundCamera>();
-		protected HashSet<BackgroundImage> backgroundImages = new HashSet<BackgroundImage>();
-		protected HashSet<Container> containers = new HashSet<Container> ();
+		/** A HashSet of all Characters found in the scene */
+		public readonly HashSet<Char> Characters = new HashSet<Char> ();
 
-		protected ConstantIDManager constantIDManager;
+		/** A HashSet of all Players found in the scene */
+		public readonly HashSet<Player> Players = new HashSet<Player> ();
+
+		/** A HashSet of all Sound components found in the scene */
+		public readonly HashSet<Sound> Sounds = new HashSet<Sound> ();
+
+		/** A HashSet of all ConstantID components found in the scene */
+		public readonly HashSet<ConstantID> ConstantIDs = new HashSet<ConstantID> ();
+
+		/** A HashSet of all Hotspot components found in the scene */
+		public readonly HashSet<Hotspot> Hotspots = new HashSet<Hotspot> ();
+
+		/** A HashSet of all FollowSortingMap components found in the scene */
+		public readonly HashSet<FollowSortingMap> FollowSortingMaps = new HashSet<FollowSortingMap> ();
+
+		/** A HashSet of all SortingMap components found in the scene */
+		public readonly HashSet<SortingMap> SortingMaps = new HashSet<SortingMap> ();
+
+		/** A HashSet of all BackgroundCamera components found in the scene */
+		public readonly HashSet<BackgroundCamera> BackgroundCameras = new HashSet<BackgroundCamera> ();
+
+		/** A HashSet of all BackgroundImage components found in the scene */
+		public readonly HashSet<BackgroundImage> BackgroundImages = new HashSet<BackgroundImage> ();
+
+		/** A HashSet of all Container components found in the scene */
+		public readonly HashSet<Container> Containers = new HashSet<Container> ();
+
+		/** A HashSet of all _Camera components found in the scene */
+		public readonly HashSet<_Camera> Cameras = new HashSet<_Camera> ();
+
+		/** The ConstantIDManager used to record all ConstantID components in the Hierarchy */
+		public readonly ConstantIDManager ConstantIDManager = new ConstantIDManager ();
+
+		private readonly HashSet<Parallax2D> Parallax2Ds = new HashSet<Parallax2D> ();
+		private readonly HashSet<Highlight> Highlights = new HashSet<Highlight> ();
+		private readonly List<AC_Trigger> Triggers = new List<AC_Trigger> ();
+		private readonly HashSet<NavMeshBase> NavMeshBases = new HashSet<NavMeshBase>();
+		private readonly HashSet<ArrowPrompt> ArrowPrompts = new HashSet<ArrowPrompt>();
+		private readonly HashSet<DragBase> DragBases = new HashSet<DragBase>();
+
+		/** True if the Movement system has been disabled */
+		public bool MovementIsOff { get; private set; }
 
 		#endregion
 
@@ -135,6 +162,8 @@ namespace AC
 			{
 				return;
 			}
+
+			KickStarter.playerInput.OnStartFrame ();
 			
 			if (KickStarter.settingsManager.IsInLoadingScene () || KickStarter.sceneChanger.IsLoading ())
 			{
@@ -174,30 +203,33 @@ namespace AC
 			{
 				KickStarter.playerCursor.UpdateCursor ();
 			
-				bool canHideHotspots = KickStarter.settingsManager.interactionMethod == AC_InteractionMethod.ChooseInteractionThenHotspot && KickStarter.settingsManager.hideUnhandledHotspots;
-				bool canDrawHotspotIcons = (KickStarter.settingsManager.hotspotIconDisplay != HotspotIconDisplay.Never);
-				bool canUpdateProximity = (KickStarter.settingsManager.hotspotDetection == HotspotDetection.PlayerVicinity && KickStarter.settingsManager.placeDistantHotspotsOnSeparateLayer && KickStarter.player);
-
-				foreach (Hotspot hotspot in hotspots)
+				if (!interactionIsOff)
 				{
-					bool showing = (canHideHotspots) ? hotspot.UpdateUnhandledVisibility () : true;
-					if (showing)
+					bool canHideHotspots = KickStarter.settingsManager.interactionMethod == AC_InteractionMethod.ChooseInteractionThenHotspot && KickStarter.settingsManager.hideUnhandledHotspots;
+					bool canDrawHotspotIcons = (KickStarter.settingsManager.hotspotIconDisplay != HotspotIconDisplay.Never);
+					bool canUpdateProximity = (KickStarter.settingsManager.hotspotDetection == HotspotDetection.PlayerVicinity && KickStarter.settingsManager.placeDistantHotspotsOnSeparateLayer && KickStarter.player);
+
+					foreach (Hotspot hotspot in Hotspots)
 					{
-						if (canDrawHotspotIcons)
+						bool showing = (canHideHotspots) ? hotspot.UpdateUnhandledVisibility () : true;
+						if (showing)
 						{
-							if (KickStarter.settingsManager.hotspotIconDisplay != HotspotIconDisplay.Never)
+							if (canDrawHotspotIcons)
 							{
-								hotspot.UpdateIcon ();
-								if (KickStarter.settingsManager.hotspotDrawing == ScreenWorld.WorldSpace)
+								if (KickStarter.settingsManager.hotspotIconDisplay != HotspotIconDisplay.Never)
 								{
-									hotspot.DrawHotspotIcon (true);
+									hotspot.UpdateIcon ();
+									if (KickStarter.settingsManager.hotspotDrawing == ScreenWorld.WorldSpace)
+									{
+										hotspot.DrawHotspotIcon (true);
+									}
 								}
 							}
-						}
 
-						if (canUpdateProximity)
-						{
-							hotspot.UpdateProximity (KickStarter.player.hotspotDetector);
+							if (canUpdateProximity)
+							{
+								hotspot.UpdateProximity (KickStarter.player.hotspotDetector);
+							}
 						}
 					}
 				}
@@ -217,15 +249,12 @@ namespace AC
 			{
 				KickStarter.playerInteraction.UpdateInteraction ();
 
-				foreach (Highlight highlight in highlights)
-				{
-					highlight._Update ();
-				}
+				KickStarter.eventManager.Call_OnUpdateHighlights ();
 
 				if (KickStarter.settingsManager.hotspotDetection == HotspotDetection.MouseOver && KickStarter.settingsManager.scaleHighlightWithMouseProximity)
 				{
 					bool isInGameplay = IsInGameplay ();
-					foreach (Hotspot hotspot in hotspots)
+					foreach (Hotspot hotspot in Hotspots)
 					{
 						hotspot.SetProximity (isInGameplay);
 					}
@@ -234,9 +263,9 @@ namespace AC
 
 			if (!triggerIsOff)
 			{
-				foreach (AC_Trigger trigger in triggers)
+				for (int i = 0; i < Triggers.Count; i++)
 				{
-					trigger._Update ();
+					Triggers[i]._Update ();
 				}
 			}
 
@@ -245,12 +274,13 @@ namespace AC
 				KickStarter.playerMenus.UpdateAllMenus ();
 			}
 
-			foreach (DragBase dragBase in dragBases)
+			foreach (DragBase dragBase in DragBases)
 			{
-				dragBase.UpdateMovement ();
+				if (dragBase.enabled)
+					dragBase.UpdateMovement ();
 			}
 
-			if (!movementIsOff)
+			if (!MovementIsOff)
 			{
 				if (IsInGameplay () && KickStarter.settingsManager && KickStarter.settingsManager.movementMethod != MovementMethod.None)
 				{
@@ -263,12 +293,12 @@ namespace AC
 				KickStarter.playerInteraction.UpdateInventory ();
 			}
 			
-			foreach (Sound sound in sounds)
+			foreach (Sound sound in Sounds)
 			{
 				sound._Update ();
 			}
 			
-			foreach (AC.Char character in characters)
+			foreach (AC.Char character in Characters)
 			{
 				if (character && (!playerIsOff || !(character.IsPlayer)))
 				{
@@ -278,7 +308,7 @@ namespace AC
 
 			if (!cameraIsOff)
 			{
-				foreach (_Camera _camera in cameras)
+				foreach (_Camera _camera in Cameras)
 				{
 					_camera._Update ();
 				}
@@ -298,7 +328,7 @@ namespace AC
 				return;
 			}
 
-			foreach (AC.Char character in characters)
+			foreach (AC.Char character in Characters)
 			{
 				if (!playerIsOff || !(character.IsPlayer))
 				{
@@ -311,12 +341,12 @@ namespace AC
 				KickStarter.mainCamera._LateUpdate ();
 			}
 
-			foreach (Parallax2D parallax2D in parallax2Ds)
+			foreach (Parallax2D parallax2D in Parallax2Ds)
 			{
 				parallax2D.UpdateOffset ();
 			}
 
-			foreach (SortingMap sortingMap in sortingMaps)
+			foreach (SortingMap sortingMap in SortingMaps)
 			{
 				sortingMap.UpdateSimilarFollowers ();
 			}
@@ -344,7 +374,7 @@ namespace AC
 				return;
 			}
 
-			foreach (AC.Char character in characters)
+			foreach (AC.Char character in Characters)
 			{
 				if (!playerIsOff || !(character.IsPlayer))
 				{
@@ -352,9 +382,10 @@ namespace AC
 				}
 			}
 
-			foreach (DragBase dragBase in dragBases)
+			foreach (DragBase dragBase in DragBases)
 			{
-				dragBase._FixedUpdate ();
+				if (dragBase.enabled)
+					dragBase._FixedUpdate ();
 			}
 
 			KickStarter.playerInput._FixedUpdate ();
@@ -426,10 +457,11 @@ namespace AC
 
 			if (!cursorIsOff && !KickStarter.saveSystem.IsTakingSaveScreenshot)
 			{
-				if (KickStarter.settingsManager.hotspotIconDisplay != HotspotIconDisplay.Never &&
+				if (!interactionIsOff &&
+					KickStarter.settingsManager.hotspotIconDisplay != HotspotIconDisplay.Never &&
 				   KickStarter.settingsManager.hotspotDrawing == ScreenWorld.ScreenSpace)
 				{
-					foreach (Hotspot hotspot in hotspots)
+					foreach (Hotspot hotspot in Hotspots)
 					{
 						hotspot.DrawHotspotIcon ();
 					}
@@ -437,7 +469,7 @@ namespace AC
 
 				if (IsInGameplay ())
 				{
-					foreach (DragBase dragBase in dragBases)
+					foreach (DragBase dragBase in DragBases)
 					{
 						dragBase.DrawGrabIcon ();
 					}
@@ -452,7 +484,7 @@ namespace AC
 				}
 				KickStarter.playerInput.DrawDragLine ();
 
-				foreach (ArrowPrompt arrowPrompt in arrowPrompts)
+				foreach (ArrowPrompt arrowPrompt in ArrowPrompts)
 				{
 					arrowPrompt.DrawArrows ();
 				}
@@ -524,7 +556,7 @@ namespace AC
 
 				if (KickStarter.playerMenus.ArePauseMenusOn ())
 				{
-					if (KickStarter.actionListManager.IsGameplayBlockedAndUnfrozen ())
+					if (KickStarter.actionListManager && KickStarter.actionListManager.IsGameplayBlockedAndUnfrozen ())
 					{
 						return GameState.Cutscene;
 					}
@@ -533,14 +565,14 @@ namespace AC
 
 				if (inScriptedCutscene) return GameState.Cutscene;
 				if (KickStarter.mainCamera && KickStarter.mainCamera.IsShowingForcedOverlay ()) return GameState.Cutscene;
-				if (KickStarter.playerInteraction.InPreInteractionCutscene) return GameState.Cutscene;
+				if (KickStarter.playerInteraction && KickStarter.playerInteraction.InPreInteractionCutscene) return GameState.Cutscene;
 
-				if (KickStarter.actionListManager.IsGameplayBlocked ())
+				if (KickStarter.actionListManager && KickStarter.actionListManager.IsGameplayBlocked ())
 				{
 					return GameState.Cutscene;
 				}
 
-				if (KickStarter.playerInput.IsInConversation (true))
+				if (KickStarter.playerInput && KickStarter.playerInput.IsInConversation (true))
 				{
 					return GameState.DialogOptions;
 				}
@@ -633,7 +665,7 @@ namespace AC
 		public void IgnoreNavMeshCollisions ()
 		{
 			Collider[] allColliders = UnityVersionHandler.FindObjectsOfType<Collider> ();
-			foreach (NavMeshBase navMeshBase in navMeshBases)
+			foreach (NavMeshBase navMeshBase in NavMeshBases)
 			{
 				navMeshBase.IgnoreNavMeshCollisions (allColliders);
 			}
@@ -643,7 +675,7 @@ namespace AC
 		/** Sets the maximum volume of all Sound objects in the scene. */
 		public void UpdateAllMaxVolumes ()
 		{
-			foreach (Sound sound in sounds)
+			foreach (Sound sound in Sounds)
 			{
 				sound.SetMaxVolume ();
 			}
@@ -754,7 +786,7 @@ namespace AC
 		public bool InteractionSystemIsEnabled { get { return !interactionIsOff; }}
 		public bool DraggableSystemIsEnabled { get { return !draggablesIsOff; }}
 		public bool MenuSystemIsEnabled { get { return !menuIsOff; }}
-		public bool MovementSystemIsEnabled { get { return !movementIsOff; }}
+		public bool MovementSystemIsEnabled { get { return !MovementIsOff; }}
 		public bool CameraSystemIsEnabled { get { return !cameraIsOff; }}
 		public bool TriggerSystemIsEnabled { get { return !triggerIsOff; }}
 		public bool PlayerSystemIsEnabled { get { return !playerIsOff; }}
@@ -781,6 +813,10 @@ namespace AC
 			if (!state)
 			{
 				KickStarter.playerInteraction.DeselectHotspot (true);
+				foreach (Hotspot hotspot in Hotspots)
+				{
+					hotspot.DeleteWorldSpaceIcon ();
+				}
 			}
 		}
 
@@ -846,7 +882,7 @@ namespace AC
 		 */
 		public void SetMovementSystem (bool state)
 		{
-			movementIsOff = !state;
+			MovementIsOff = !state;
 		}
 
 
@@ -911,7 +947,7 @@ namespace AC
 			mainData.inputIsOff = inputIsOff;
 			mainData.interactionIsOff = interactionIsOff;
 			mainData.menuIsOff = menuIsOff;
-			mainData.movementIsOff = movementIsOff;
+			mainData.movementIsOff = MovementIsOff;
 			mainData.cameraIsOff = cameraIsOff;
 			mainData.triggerIsOff = triggerIsOff;
 			mainData.playerIsOff = playerIsOff;
@@ -942,7 +978,7 @@ namespace AC
 			inputIsOff = mainData.inputIsOff;
 			interactionIsOff = mainData.interactionIsOff;
 			menuIsOff = mainData.menuIsOff;
-			movementIsOff = mainData.movementIsOff;
+			MovementIsOff = mainData.movementIsOff;
 			cameraIsOff = mainData.cameraIsOff;
 			triggerIsOff = mainData.triggerIsOff;
 			playerIsOff = mainData.playerIsOff;
@@ -1105,130 +1141,6 @@ namespace AC
 		#endregion
 
 
-		#region GetSet
-
-		/** A HashSet of all Char components found in the scene */
-		public HashSet<Char> Characters
-		{
-			get
-			{
-				return characters;
-			}
-		}
-
-
-		/** A HashSet of all Sound components found in the scene */
-		public HashSet<Sound> Sounds
-		{
-			get
-			{
-				return sounds;
-			}
-		}
-
-
-		/** A HashSet of all ConstantID components found in the scene */
-		public HashSet<ConstantID> ConstantIDs
-		{
-			get
-			{
-				return constantIDManager.ConstantIDs;
-			}
-		}
-
-
-		/** A HashSet of all Hotspot components found in the scene */
-		public HashSet<Hotspot> Hotspots
-		{
-			get
-			{
-				return hotspots;
-			}
-		}
-
-
-		/** A HashSet of all FollowSortingMap components found in the scene */
-		public HashSet<FollowSortingMap> FollowSortingMaps
-		{
-			get
-			{
-				return followSortingMaps;
-			}
-		}
-
-
-		/** A HashSet of all SortingMap components found in the scene */
-		public HashSet<SortingMap> SortingMaps
-		{
-			get
-			{
-				return sortingMaps;
-			}
-		}
-
-
-		/** A HashSet of all BackgroundCamera components found in the scene */
-		public HashSet<BackgroundCamera> BackgroundCameras
-		{
-			get
-			{
-				return backgroundCameras;
-			}
-		}
-
-
-		/** A HashSet of all BackgroundImage components found in the scene */
-		public HashSet<BackgroundImage> BackgroundImages
-		{
-			get
-			{
-				return backgroundImages;
-			}
-		}
-
-
-		/** A HashSet of all Container components found in the scene */
-		public HashSet<Container> Containers
-		{
-			get
-			{
-				return containers;
-			}
-		}
-
-
-		/** A HashSet of all _Camera components found in the scene */
-		public HashSet<_Camera> Cameras
-		{
-			get
-			{
-				return cameras;
-			}
-		}
-
-
-		/** The ConstantIDManager used to record all ConstantID components in the Hierarchy */
-		public ConstantIDManager ConstantIDManager
-		{
-			get
-			{
-				return constantIDManager;
-			}
-		}
-
-
-		/** True if the Movement system has been disabled */
-		public bool MovementIsOff
-		{
-			get
-			{
-				return movementIsOff;
-			}
-		}
-
-		#endregion
-
-
 		#region ObjectRecordKeeping
 
 		/**
@@ -1237,7 +1149,7 @@ namespace AC
 		 */
 		public void Register (ArrowPrompt _object)
 		{
-			arrowPrompts.Add (_object);
+			ArrowPrompts.Add (_object);
 		}
 
 
@@ -1247,7 +1159,7 @@ namespace AC
 		 */
 		public void Unregister (ArrowPrompt _object)
 		{
-			arrowPrompts.Remove (_object);
+			ArrowPrompts.Remove (_object);
 		}
 
 
@@ -1257,7 +1169,7 @@ namespace AC
 		 */
 		public void Register (DragBase _object)
 		{
-			dragBases.Add (_object);
+			DragBases.Add (_object);
 		}
 
 
@@ -1267,7 +1179,7 @@ namespace AC
 		 */
 		public void Unregister (DragBase _object)
 		{
-			dragBases.Remove (_object);
+			DragBases.Remove (_object);
 		}
 
 
@@ -1277,7 +1189,7 @@ namespace AC
 		 */
 		public void Register (Parallax2D _object)
 		{
-			parallax2Ds.Add (_object);
+			Parallax2Ds.Add (_object);
 		}
 
 
@@ -1287,7 +1199,7 @@ namespace AC
 		 */
 		public void Unregister (Parallax2D _object)
 		{
-			parallax2Ds.Remove (_object);
+			Parallax2Ds.Remove (_object);
 		}
 
 
@@ -1297,9 +1209,9 @@ namespace AC
 		 */
 		public void Register (Hotspot _object)
 		{
-			if (!hotspots.Contains (_object))
+			if (!Hotspots.Contains (_object))
 			{
-				hotspots.Add (_object);
+				Hotspots.Add (_object);
 
 				if (KickStarter.eventManager)
 				{
@@ -1315,9 +1227,9 @@ namespace AC
 		 */
 		public void Unregister (Hotspot _object)
 		{
-			if (hotspots.Contains (_object))
+			if (Hotspots.Contains (_object))
 			{
-				hotspots.Remove (_object);
+				Hotspots.Remove (_object);
 
 				if (KickStarter.eventManager)
 				{
@@ -1333,7 +1245,7 @@ namespace AC
 		 */
 		public void Register (Highlight _object)
 		{
-			highlights.Add (_object);
+			Highlights.Add (_object);
 		}
 
 
@@ -1343,7 +1255,7 @@ namespace AC
 		 */
 		public void Unregister (Highlight _object)
 		{
-			highlights.Remove (_object);
+			Highlights.Remove (_object);
 		}
 
 
@@ -1353,7 +1265,8 @@ namespace AC
 		 */
 		public void Register (AC_Trigger _object)
 		{
-			triggers.Add (_object);
+			if (Triggers.Contains(_object)) return;
+			Triggers.Add (_object);
 		}
 
 
@@ -1363,7 +1276,8 @@ namespace AC
 		 */
 		public void Unregister (AC_Trigger _object)
 		{
-			triggers.Remove (_object);
+			if (!Triggers.Contains(_object)) return;
+			Triggers.Remove (_object);
 		}
 
 
@@ -1373,7 +1287,7 @@ namespace AC
 		 */
 		public void Register (_Camera _object)
 		{
-			cameras.Add (_object);
+			Cameras.Add (_object);
 		}
 
 
@@ -1383,7 +1297,7 @@ namespace AC
 		 */
 		public void Unregister (_Camera _object)
 		{
-			cameras.Remove (_object);
+			Cameras.Remove (_object);
 		}
 
 
@@ -1393,7 +1307,7 @@ namespace AC
 		 */
 		public void Register (Sound _object)
 		{
-			sounds.Add (_object);
+			Sounds.Add (_object);
 		}
 
 
@@ -1403,7 +1317,7 @@ namespace AC
 		 */
 		public void Unregister (Sound _object)
 		{
-			sounds.Remove (_object);
+			Sounds.Remove (_object);
 		}
 
 
@@ -1413,7 +1327,12 @@ namespace AC
 		 */
 		public void Register (Char _object)
 		{
-			characters.Add (_object);
+			Characters.Add (_object);
+
+			if (_object.IsPlayer)
+			{
+				Players.Add (_object as Player);
+			}
 		}
 
 
@@ -1423,7 +1342,12 @@ namespace AC
 		 */
 		public void Unregister (Char _object)
 		{
-			characters.Remove (_object);
+			Characters.Remove (_object);
+
+			if (_object.IsPlayer)
+			{
+				Players.Remove (_object as Player);
+			}
 		}
 
 
@@ -1433,7 +1357,7 @@ namespace AC
 		 */
 		public void Register (FollowSortingMap _object)
 		{
-			followSortingMaps.Add (_object);
+			FollowSortingMaps.Add (_object);
 			_object.UpdateSortingMap ();
 		}
 
@@ -1444,7 +1368,7 @@ namespace AC
 		 */
 		public void Unregister (FollowSortingMap _object)
 		{
-			followSortingMaps.Remove (_object);
+			FollowSortingMaps.Remove (_object);
 		}
 
 
@@ -1454,9 +1378,9 @@ namespace AC
 		 */
 		public void Register (NavMeshBase _object)
 		{
-			if (!navMeshBases.Contains (_object))
+			if (!NavMeshBases.Contains (_object))
 			{
-				navMeshBases.Add (_object);
+				NavMeshBases.Add (_object);
 				_object.IgnoreNavMeshCollisions ();
 			}
 		}
@@ -1468,7 +1392,7 @@ namespace AC
 		 */
 		public void Unregister (NavMeshBase _object)
 		{
-			navMeshBases.Remove (_object);
+			NavMeshBases.Remove (_object);
 		}
 
 
@@ -1478,7 +1402,7 @@ namespace AC
 		 */
 		public void Register (SortingMap _object)
 		{
-			sortingMaps.Add (_object);
+			SortingMaps.Add (_object);
 		}
 
 
@@ -1488,7 +1412,7 @@ namespace AC
 		 */
 		public void Unregister (SortingMap _object)
 		{
-			sortingMaps.Remove (_object);
+			SortingMaps.Remove (_object);
 		}
 
 
@@ -1498,9 +1422,9 @@ namespace AC
 		 */
 		public void Register (BackgroundCamera _object)
 		{
-			if (!backgroundCameras.Contains (_object))
+			if (!BackgroundCameras.Contains (_object))
 			{
-				backgroundCameras.Add (_object);
+				BackgroundCameras.Add (_object);
 				_object.UpdateRect ();
 			}
 		}
@@ -1512,7 +1436,7 @@ namespace AC
 		 */
 		public void Unregister (BackgroundCamera _object)
 		{
-			backgroundCameras.Remove (_object);
+			BackgroundCameras.Remove (_object);
 		}
 
 
@@ -1522,7 +1446,7 @@ namespace AC
 		 */
 		public void Register (BackgroundImage _object)
 		{
-			backgroundImages.Add (_object);
+			BackgroundImages.Add (_object);
 		}
 
 
@@ -1532,7 +1456,7 @@ namespace AC
 		 */
 		public void Unregister (BackgroundImage _object)
 		{
-			backgroundImages.Remove (_object);
+			BackgroundImages.Remove (_object);
 		}
 
 
@@ -1542,7 +1466,7 @@ namespace AC
 		 */
 		public void Register (Container _object)
 		{
-			containers.Add (_object);
+			Containers.Add (_object);
 		}
 
 
@@ -1552,7 +1476,7 @@ namespace AC
 		 */
 		public void Unregister (Container _object)
 		{
-			containers.Remove (_object);
+			Containers.Remove (_object);
 		}
 
 
@@ -1562,7 +1486,7 @@ namespace AC
 		 */
 		public void Register (ConstantID _object)
 		{
-			constantIDManager.Register (_object);
+			ConstantIDManager.Register (_object);
 		}
 
 
@@ -1572,7 +1496,7 @@ namespace AC
 		 */
 		public void Unregister (ConstantID _object)
 		{
-			constantIDManager.Unregister (_object);
+			ConstantIDManager.Unregister (_object);
 		}
 
 		#endregion

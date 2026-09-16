@@ -121,11 +121,12 @@ namespace AC
 			}
 			else
 			{
-				uiButton = _element.uiButton;
+				uiButton = null;
 				uiSlots = (_element.uiSlots != null) ? new UISlot[_element.uiSlots.Length] : new UISlot[0];
 				for (int i=0; i<uiSlots.Length; i++)
 				{
 					uiSlots[i] = new UISlot (_element.uiSlots[i]);
+					uiSlots[i].uiButton = null;
 				}
 			}
 
@@ -423,7 +424,7 @@ namespace AC
 			{
 				for (int i = 0; i < uiSlots.Length; i++)
 				{
-					if (uiSlots[i].uiButton && uiSlots[i].uiButton == gameObject)
+					if (uiSlots[i].uiButton && uiSlots[i].uiButton.gameObject == gameObject)
 					{
 						return i;
 					}
@@ -482,7 +483,8 @@ namespace AC
 						uiImage.sprite = icon.GetAnimatedSprite (isActive);
 					}
 
-					if (KickStarter.settingsManager.SelectInteractionMethod () == SelectInteractions.CyclingMenuAndClickingHotspot &&
+					if (Application.isPlaying &&
+						KickStarter.settingsManager.SelectInteractionMethod () == SelectInteractions.CyclingMenuAndClickingHotspot &&
 						iconID == KickStarter.playerInteraction.GetActiveUseButtonIconID ())
 					{
 						// Select through script, not by mouse-over
@@ -508,8 +510,9 @@ namespace AC
 							uiSlots[_slot].SetText (labels[_slot]);
 						}
 
-						if (KickStarter.settingsManager.SelectInteractionMethod () == SelectInteractions.CyclingMenuAndClickingHotspot &&
-						cursorIcon.id == KickStarter.playerInteraction.GetActiveUseButtonIconID ())
+						if (Application.isPlaying &&
+							KickStarter.settingsManager.SelectInteractionMethod () == SelectInteractions.CyclingMenuAndClickingHotspot &&
+							cursorIcon.id == KickStarter.playerInteraction.GetActiveUseButtonIconID ())
 						{
 							uiSlots[_slot].uiButton.Select ();
 						}
@@ -799,8 +802,11 @@ namespace AC
 				}
 				else
 				{
+					bool canSeeAutoHideOption = (KickStarter.settingsManager.interactionMethod == AC_InteractionMethod.ChooseHotspotThenInteraction && KickStarter.settingsManager.selectInteractions != SelectInteractions.CyclingCursorAndClickingHotspot) ||
+												(KickStarter.settingsManager.inputMethod == InputMethod.TouchScreen && KickStarter.settingsManager.interactionMethod == AC_InteractionMethod.ChooseHotspotThenInteraction && KickStarter.settingsManager.selectInteractions != SelectInteractions.CyclingCursorAndClickingHotspot);
+
 					List<int> _iconIDs = new List<int>();
-					if (!KickStarter.settingsManager.autoHideInteractionIcons || !Application.isPlaying)
+					if ((canSeeAutoHideOption && !KickStarter.settingsManager.autoHideInteractionIcons) || !Application.isPlaying)
 					{
 						foreach (CursorIcon icon in KickStarter.cursorManager.cursorIcons)
 						{
@@ -822,6 +828,23 @@ namespace AC
 						else if (InvInstance.IsValid (parentMenu.TargetInvInstance))
 						{
 							foreach (InvInteraction interaction in parentMenu.TargetInvInstance.Interactions)
+							{
+								_iconIDs.Add (interaction.icon.id);
+							}
+						}
+						else if (parentMenu.HotspotLabelData.Hotspot)
+						{
+							foreach (Button button in parentMenu.HotspotLabelData.Hotspot.useButtons)
+							{
+								if (!button.isDisabled)
+								{
+									_iconIDs.Add (button.iconID);
+								}
+							}
+						}
+						else if (InvInstance.IsValid (parentMenu.HotspotLabelData.InvInstance))
+						{
+							foreach (InvInteraction interaction in parentMenu.HotspotLabelData.InvInstance.Interactions)
 							{
 								_iconIDs.Add (interaction.icon.id);
 							}

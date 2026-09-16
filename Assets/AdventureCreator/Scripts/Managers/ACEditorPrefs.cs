@@ -89,23 +89,7 @@ namespace AC
 					if (settings) return settings;
 
 					settings = CreateInstance<ACEditorPrefs> ();
-					settings.hierarchyIconOffset = DefaultHierarchyIconOffset;
-					settings.hotspotGizmoColor = DefaultHotspotGizmoColor;
-					settings.triggerGizmoColor = DefaultTriggerGizmoColor;
-					settings.collisionGizmoColor = DefaultCollisionGizmoColor;
-					settings.pathGizmoColor = DefaultPathGizmoColor;
-					settings.menuItemsBeforeScroll = DefaultMenuItemsBeforeScroll;
-					settings.csvFormat = DefaultCSVFormat;
-					settings.showHierarchyIcons = DefaultShowHierarchyIcons;
-					settings.editorLabelWidth = DefaultEditorLabelWidth;
-					settings.actionNodeWidth = DefaultActionNodeWidth;
-					settings.disableInstaller = DefaultDisableInstaller;
-					settings.installPath = DefaultInstallPath;
-					settings.autosaveActionListsInterval = DefaultAutosaveActionListsInterval;
-					settings.retainExportFieldData = DefaultRetainExportFieldData;
-					settings.allowDragDrop = DefaultAllowDragDrop;
-					settings.actionListAssetPath = DefaultActionListAssetPath;
-					settings.exportEncoding = DefaultExportEncoding;
+					settings.ResetToDefaults();
 
 					try
 					{
@@ -141,6 +125,28 @@ namespace AC
 		}
 
 		#endif
+
+
+		public void ResetToDefaults()
+		{
+			hierarchyIconOffset = DefaultHierarchyIconOffset;
+			hotspotGizmoColor = DefaultHotspotGizmoColor;
+			triggerGizmoColor = DefaultTriggerGizmoColor;
+			collisionGizmoColor = DefaultCollisionGizmoColor;
+			pathGizmoColor = DefaultPathGizmoColor;
+			menuItemsBeforeScroll = DefaultMenuItemsBeforeScroll;
+			csvFormat = DefaultCSVFormat;
+			showHierarchyIcons = DefaultShowHierarchyIcons;
+			editorLabelWidth = DefaultEditorLabelWidth;
+			actionNodeWidth = DefaultActionNodeWidth;
+			disableInstaller = DefaultDisableInstaller;
+			installPath = DefaultInstallPath;
+			autosaveActionListsInterval = DefaultAutosaveActionListsInterval;
+			retainExportFieldData = DefaultRetainExportFieldData;
+			allowDragDrop = DefaultAllowDragDrop;
+			actionListAssetPath = DefaultActionListAssetPath;
+			exportEncoding = DefaultExportEncoding;
+		}
 
 
 		/** A horizontal offset to apply to Hierarchy icons */
@@ -642,6 +648,12 @@ namespace AC
 						EditorGUILayout.PropertyField (settings.FindProperty ("exportEncoding"), new GUIContent ("Export encoding:", "The encoding to use when writing files with the Text, Variable and Inventory export wizards"));
 
 						settings.ApplyModifiedProperties ();
+
+						EditorGUILayout.Space();
+						if (GUILayout.Button ("Revert to defaults"))
+						{
+							ACEditorPrefs.GetOrCreateSettings().ResetToDefaults();
+						}
 					}
 					else
 					{

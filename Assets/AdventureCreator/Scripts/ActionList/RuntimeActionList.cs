@@ -1,7 +1,7 @@
 /*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2025
  *	
  *	"RuntimeActionList.cs"
  * 
@@ -109,6 +109,7 @@ namespace AC
 										? Instantiate (action)
 										: action;
 					#endif
+					newAction.isRunning = false;
 
 					if (doSkip)
 					{

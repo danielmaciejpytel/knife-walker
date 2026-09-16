@@ -96,17 +96,10 @@ namespace AC
 		
 		private void CopyInput (MenuInput _element, bool ignoreUnityUI)
 		{
-			if (ignoreUnityUI)
-			{
-				uiInput = null;
-			}
-			else
-			{
-				uiInput = _element.uiInput;
-				#if TextMeshProIsPresent
-				uiInputTMP = _element.uiInputTMP;
-				#endif
-			}
+			uiInput = null;
+			#if TextMeshProIsPresent
+			uiInputTMP = null;
+			#endif
 
 			label = _element.label;
 			anchor = _element.anchor;
@@ -132,12 +125,23 @@ namespace AC
 			{
 				LinkUIElement (canvas, ref uiInputTMP);
 				CreateHoverSoundHandler (uiInputTMP, _menu, 0);
+				uiInputTMP.onSubmit.AddListener (delegate { OnSubmitUI (); });
 			}
 			if (!_menu.useTextMeshProComponents || uiInputTMP == null)
 			#endif
 			{
 				LinkUIElement (canvas, ref uiInput);
 				CreateHoverSoundHandler (uiInput, _menu, 0);
+				uiInput.onSubmit.AddListener (delegate { OnSubmitUI (); });
+			}
+		}
+		
+		
+		private void OnSubmitUI ()
+		{
+			if (linkedButton != "" && parentMenu)
+			{
+				PlayerMenus.SimulateClick (parentMenu.title, parentMenu.GetElementWithName (linkedButton), 1);
 			}
 		}
 		
@@ -228,6 +232,8 @@ namespace AC
 				else
 				#endif
 					uiInput = LinkedUiGUI <InputField> (uiInput, "Linked InputField:", menu);
+
+				linkedButton = CustomGUILayout.TextField ("'Enter' key's linked Button:", linkedButton, apiPrefix + ".linkedPrefab", "The name of the MenuButton element that is synced with the 'Return' key when this element is active");
 				uiSelectableHideStyle = (UISelectableHideStyle) CustomGUILayout.EnumPopup ("When invisible:", uiSelectableHideStyle, apiPrefix + ".uiSelectableHideStyle", "The method by which this element is hidden from view when made invisible");
 			}
 			CustomGUILayout.EndVertical ();
@@ -360,6 +366,7 @@ namespace AC
 			if (uiInputTMP)
 			{
 				uiInputTMP.text = label;
+				uiInputTMP.MoveTextEnd (false);
 				return;
 			}
 			#endif
@@ -367,6 +374,7 @@ namespace AC
 			if (uiInput)
 			{
 				uiInput.text = label;
+				uiInput.MoveTextEnd (false);
 			}
 		}
 
@@ -487,6 +495,7 @@ namespace AC
 			else if ((inputType == AC_InputType.AlphaNumeric && (input.Length == 1 || input.Contains ("Alpha"))) ||
 					(inputType == AC_InputType.AlphaNumeric && allowSpaces && input == "Space") ||
 					(inputType == AC_InputType.NumbericOnly && input.Contains ("Alpha")) ||
+					(inputType == AC_InputType.NumbericOnly && input.StartsWith ("Keypad") && input.Length == 6) ||
 					(inputType == AC_InputType.NumbericOnly && allowDecimals && input == "Period" && !label.Contains (".")) ||
 					(inputType == AC_InputType.NumbericOnly && allowDecimals && input == "KeypadPeriod" && !label.Contains (".")) ||
 					(inputType == AC_InputType.AllowSpecialCharacters && (input.Length == 1 || input == "Space")))
@@ -498,6 +507,7 @@ namespace AC
 
 				input = input.Replace ("KeypadPeriod", ".");
 				input = input.Replace ("Period", ".");
+				input = input.Replace ("Keypad", "");
 
 				if (inputType != AC_InputType.AllowSpecialCharacters)
 				{

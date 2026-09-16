@@ -1,7 +1,7 @@
 /*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2025
  *	
  *	"SpeechManager.cs"
  * 
@@ -57,6 +57,8 @@ namespace AC
 		public SpeechScrollAudioSource speechScrollAudioSource = SpeechScrollAudioSource.SFX;
 		/** The default delay to insert after triggering a line of dialogue with the 'Dialogue: Play speech' Action. A further delay can be added per-Action. */
 		public float waitTimeOffset = 0f;
+		/** If True, a speech line's post-line delay (waitTimeOffset) will be ignored if the line was skipped by the Player */
+		public bool ignorePostLineDelayWhenSkipping = false;
 
 		/** If True, then speech text will remain on the screen until the player skips it */
 		public bool displayForever = false;
@@ -247,6 +249,7 @@ namespace AC
 				previewMenuName = CustomGUILayout.DelayedTextField ("Subtitle preview menu:", previewMenuName, "AC.KickStarter.speechManager.previewMenuName", "The name of the Menu to display subtitles in when previewing Speech tracks in a Timeline.");
 
 				waitTimeOffset = CustomGUILayout.Slider ("Initial post-line delay (s):", waitTimeOffset, 0f, 4f, "AC.KickStarter.speechManager.waitTimeOffset", "The default delay to insert after triggering a line of dialogue with the 'Dialogue: Play speech' Action. A further delay can be added per-Action.");
+				ignorePostLineDelayWhenSkipping = CustomGUILayout.ToggleLeft ("Ignore post-line delay when skipping?", ignorePostLineDelayWhenSkipping, "AC.KickStarter.speechManager.ignorePostLineDelayWhenSkipping", "If True, post-line delays will be ignored if the speech line was skipped.");
 
 				separateLines = CustomGUILayout.ToggleLeft ("Treat carriage returns as separate speech lines?", separateLines, "AC.KickStarter.speechManager.separateLines", "If True, then a speech line will be split by carriage returns into separate speech lines");
 				if (separateLines)
@@ -502,13 +505,21 @@ namespace AC
 				EditorGUILayout.BeginHorizontal ();
 				if (GUILayout.Button ("Gather text", EditorStyles.miniButtonLeft))
 				{
-					PopulateList ();
-					return;
+					EditorApplication.delayCall += () =>
+					{
+						try
+						{
+							PopulateList();
+						}
+						finally
+						{
+							EditorUtility.ClearProgressBar();
+						}
+					};
 				}
 				if (GUILayout.Button ("Reset text", EditorStyles.miniButtonRight))
 				{
 					ClearList ();
-					return;
 				}
 				EditorGUILayout.EndHorizontal ();
 
@@ -1450,7 +1461,7 @@ namespace AC
 
 			if (UnityEditor.SceneManagement.EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo ())
 			{
-				Undo.RecordObject (this, "Update speech list");
+				Undo.RecordObject (this, "Update gathered text");
 				
 				int originalLineCount = (lines != null) ? lines.Count : 0;
 				addedLines.Clear ();
@@ -1862,6 +1873,19 @@ namespace AC
 			{
 				ExtractTranslatable (prefabTranslatable, onlySeekNew, false, true);
 			}
+
+			#if CAN_SEARCH_INACTIVE
+			ITranslatableReferencer[] prefabTranslatableReferencers = prefab.GetComponentsInChildren<ITranslatableReferencer> (gatherInactiveGameObjects);
+			#else
+			ITranslatableReferencer[] prefabTranslatableReferencers = prefab.GetComponentsInChildren<ITranslatableReferencer> ();
+			#endif
+			foreach (ITranslatableReferencer prefabTranslatableReferencer in prefabTranslatableReferencers)
+			{
+				foreach (ITranslatable translatable in prefabTranslatableReferencer.GetTranslatables())
+				{
+					ExtractTranslatable (translatable, onlySeekNew, false, true);
+				}
+			}
 		}
 		
 		
@@ -2033,6 +2057,21 @@ namespace AC
 					ExtractTranslatable (currentComponent, onlySeekNew, true, true, string.Empty, -1, currentObj.gameObject.name);
 				}
 			}
+
+			// TranslatableReferences
+			for (int i=0; i<sceneObjects.Length; i++)
+			{
+				MonoBehaviour currentObj = sceneObjects[i];
+				ITranslatableReferencer currentComponent = currentObj as ITranslatableReferencer;
+				if (currentComponent != null)
+				{
+					var translatables = currentComponent.GetTranslatables();
+					foreach (var translatable in translatables)
+					{
+						ExtractTranslatable (translatable, onlySeekNew, true, true, string.Empty, -1, currentObj.gameObject.name);
+					}
+				}
+			}
 			
 			// Timelines
 #if TimelineIsPresent
@@ -2175,7 +2214,7 @@ namespace AC
 						string sceneName = System.IO.Path.GetFileNameWithoutExtension (sceneFile);
 						if (sceneName != speechLine.scene && sceneFile != speechLine.scene) continue;
 
-						UnityVersionHandler.OpenScene (sceneFile);
+						UnityVersionHandler.OpenScene (sceneFile, true);
 
 						// Actions
 						#if CAN_SEARCH_INACTIVE
@@ -2975,6 +3014,7 @@ namespace AC
 				{
 					foreach (EventBase _event in settingsManager.events)
 					{
+						if (_event == null) continue;
 						SmartAddAsset (_event.ActionListAsset);
 					}
 				}
@@ -3469,29 +3509,12 @@ namespace AC
 					ExtractTranslatable (action as ITranslatable, onlySeekNew, isInScene, false, action.comment, tagID, actionListName);
 				}
 
-				if (action is ActionInstantiate)
+				if (action is ITranslatableReferencer)
 				{
-					ActionInstantiate actionInstantiate = action as ActionInstantiate;
-					if (actionInstantiate.invAction == InvAction.Add || actionInstantiate.invAction == InvAction.Replace)
+					var translatables = (action as ITranslatableReferencer).GetTranslatables();
+					foreach (var translatable in translatables)
 					{
-						#if AddressableIsPresent
-						if (actionInstantiate.referenceByAddressable)
-						{
-							continue;
-						}
-						#endif
-						if (actionInstantiate.parameterID < 0 && actionInstantiate.gameObject && UnityVersionHandler.IsPrefabFile (actionInstantiate.gameObject))
-						{
-							#if CAN_SEARCH_INACTIVE
-							ITranslatable[] prefabTranslatables = actionInstantiate.gameObject.GetComponentsInChildren <ITranslatable> (gatherInactiveGameObjects);
-							#else
-							ITranslatable[] prefabTranslatables = actionInstantiate.gameObject.GetComponentsInChildren <ITranslatable> ();
-							#endif
-							foreach (ITranslatable prefabTranslatable in prefabTranslatables)
-							{
-								ExtractTranslatable (prefabTranslatable, onlySeekNew, false, true, string.Empty, -1, actionListName);
-							}
-						}
+						ExtractTranslatable (translatable, onlySeekNew, isInScene, false, action.comment, tagID, actionListName);
 					}
 				}
 

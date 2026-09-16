@@ -83,15 +83,9 @@ namespace AC
 		
 		private void CopyGraphic (MenuGraphic _element, bool ignoreUnityUI)
 		{
-			if (ignoreUnityUI)
-			{
-				uiImage = null;
-			}
-			else
-			{
-				uiImage = _element.uiImage;
-			}
-			uiRawImage = _element.uiRawImage;
+			uiImage = null;
+			uiRawImage = null;
+			
 			uiImageType = _element.uiImageType;
 			linkedJournalElementName = _element.linkedJournalElementName;
 			uiComponentHideStyle = _element.uiComponentHideStyle;
@@ -108,10 +102,12 @@ namespace AC
 			if (uiImageType == UIImageType.Image)
 			{
 				LinkUIElement (canvas, ref uiImage);
+				uiRawImage = null;
 			}
 			else if (uiImageType == UIImageType.RawImage)
 			{
 				LinkUIElement (canvas, ref uiRawImage);
+				uiImage = null;
 			}
 		}
 		
@@ -157,11 +153,11 @@ namespace AC
 			graphicType = (AC_GraphicType) CustomGUILayout.EnumPopup ("Graphic type:", graphicType, apiPrefix + ".graphicType", "The type of graphic that is shown");
 			if (graphicType == AC_GraphicType.Normal)
 			{
-				graphic.ShowGUI (false, false, "Texture:", CursorRendering.Software, apiPrefix + ".graphic", "The texture to display");
+				graphic.ShowGUI (CursorIconBase.IncludeSize.No, false, "Texture:", CursorRendering.Software, apiPrefix + ".graphic", "The texture to display");
 			}
 			else
 			{
-				graphic.ShowGUI (false, false, "Fallback texture:", CursorRendering.Software, apiPrefix + ".graphic", "The texture to display if none other is available");
+				graphic.ShowGUI (CursorIconBase.IncludeSize.No, false, "Fallback texture:", CursorRendering.Software, apiPrefix + ".graphic", "The texture to display if none other is available");
 			}
 
 			if (graphicType == AC_GraphicType.PageTexture)
@@ -309,12 +305,12 @@ namespace AC
 				case AC_GraphicType.ObjectiveTexture:
 					if (Application.isPlaying && KickStarter.runtimeObjectives.SelectedObjective != null)
 					{
-						if (localTexture != KickStarter.runtimeObjectives.SelectedObjective.Objective.texture && KickStarter.runtimeObjectives.SelectedObjective.Objective.texture)
+						if (localTexture != KickStarter.runtimeObjectives.SelectedObjective.Texture && KickStarter.runtimeObjectives.SelectedObjective.Texture)
 						{
-							Texture2D objTex = KickStarter.runtimeObjectives.SelectedObjective.Objective.texture;
+							Texture2D objTex = KickStarter.runtimeObjectives.SelectedObjective.Texture;
 							sprite = Sprite.Create (objTex, new Rect (0f, 0f, objTex.width, objTex.height), new Vector2 (0.5f, 0.5f));
 						}
-						localTexture = KickStarter.runtimeObjectives.SelectedObjective.Objective.texture;
+						localTexture = KickStarter.runtimeObjectives.SelectedObjective.Texture;
 					}
 					break;
 
@@ -461,75 +457,84 @@ namespace AC
 
 			if (uiImageType == UIImageType.Image && uiImage)
 			{
+				Sprite _sprite = null;
 				switch (graphicType)
 				{
 					case AC_GraphicType.Normal:
-						uiImage.sprite = graphic.GetAnimatedSprite (true);
+						_sprite = graphic.GetAnimatedSprite (true);
 						break;
 
 					case AC_GraphicType.DialoguePortrait:
 						if (speech != null && portraitCharacterOverride == null)
 						{
-							uiImage.sprite = speech.GetPortraitSprite ();
+							_sprite = speech.GetPortraitSprite ();
 						}
 						else if (portraitCharacterOverride != null)
 						{
-							uiImage.sprite = portraitCharacterOverride.GetPortraitSprite ();
+							_sprite = portraitCharacterOverride.GetPortraitSprite ();
 						}
-						if (uiImage.sprite == null && graphic != null && graphic.texture)
+						if (_sprite == null && graphic != null && graphic.texture)
 						{
-							uiImage.sprite = graphic.GetAnimatedSprite (true);
+							_sprite = graphic.GetAnimatedSprite (true);
 						}
 						break;
 
 					case AC_GraphicType.DocumentTexture:
 					case AC_GraphicType.ObjectiveTexture:
 					case AC_GraphicType.PageTexture:
-						uiImage.sprite = sprite;
-						if (uiImage.sprite == null && graphic != null && graphic.texture)
+						_sprite = sprite;
+						if (_sprite == null && graphic != null && graphic.texture)
 						{
-							uiImage.sprite = graphic.GetAnimatedSprite (true);
+							_sprite = graphic.GetAnimatedSprite (true);
+						}
+						break;
+
+					default:
+						break;
+
+				}
+				if (_sprite) uiImage.sprite = _sprite;
+				UpdateUIElement (uiImage, uiComponentHideStyle);
+			}
+			if (uiImageType == UIImageType.RawImage && uiRawImage)
+			{
+				Texture texture = null;
+				switch (graphicType)
+				{
+					case AC_GraphicType.Normal:
+						if (graphic.texture && graphic.texture is RenderTexture)
+						{
+							texture = graphic.texture;
+						}
+						else
+						{
+							texture = graphic.GetAnimatedTexture (true);
+						}
+						break;
+
+					case AC_GraphicType.DocumentTexture:
+					case AC_GraphicType.ObjectiveTexture:
+					case AC_GraphicType.DialoguePortrait:
+					case AC_GraphicType.PageTexture:
+						texture = localTexture;
+						if (localTexture == null && graphic.texture)
+						{
+							if (texture && graphic.texture is RenderTexture)
+							{
+								texture = graphic.texture;
+							}
+							else
+							{
+								texture = graphic.GetAnimatedTexture (true);
+							}
 						}
 						break;
 
 					default:
 						break;
 				}
-				UpdateUIElement (uiImage, uiComponentHideStyle);
-			}
-			if (uiImageType == UIImageType.RawImage && uiRawImage)
-			{
-				switch (graphicType)
-				{
-					case AC_GraphicType.Normal:
-						if (graphic.texture && graphic.texture is RenderTexture)
-						{
-							uiRawImage.texture = graphic.texture;
-						}
-						else
-						{
-							uiRawImage.texture = graphic.GetAnimatedTexture (true);
-						}
-						break;
 
-					case AC_GraphicType.DocumentTexture:
-					case AC_GraphicType.ObjectiveTexture:
-					case AC_GraphicType.DialoguePortrait:
-					case AC_GraphicType.PageTexture:
-						uiRawImage.texture = localTexture;
-						if (localTexture == null && graphic.texture)
-						{
-							if (uiRawImage.texture && graphic.texture is RenderTexture)
-							{
-								uiRawImage.texture = graphic.texture;
-							}
-							else
-							{
-								uiRawImage.texture = graphic.GetAnimatedTexture (true);
-							}
-						}
-						break;
-				}
+				if (texture) uiRawImage.texture = texture;
 
 				UpdateUIElement (uiRawImage, uiComponentHideStyle);
 			}

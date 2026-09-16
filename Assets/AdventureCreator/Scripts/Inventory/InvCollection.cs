@@ -467,7 +467,7 @@ namespace AC
 			
 			if (Contains (addInstance))
 			{
-				if (!CanReorder ())
+				if (!CanReorder () && occupiedSlotBehaviour != OccupiedSlotBehaviour.SwapItems)
 				{
 					return addInstance;
 				}
@@ -543,6 +543,7 @@ namespace AC
 									fromCollection.invInstances[fromCollection.IndexOf (addInstance)] = existingInstance;
 									invInstances[index] = addInstance;
 									addedInstance = invInstances[index];
+									KickStarter.eventManager.Call_OnChangeInventory(fromCollection, existingInstance, InventoryEventType.Add);
 
 									if (KickStarter.runtimeInventory.SelectedInstance == addInstance)
 									{

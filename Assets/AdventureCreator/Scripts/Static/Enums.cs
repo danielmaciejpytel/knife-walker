@@ -23,7 +23,7 @@ namespace AC
 	public enum InteractionSource { InScene, AssetFile, CustomScript };
 	public enum TemplateCategory { SamplePlayer, SampleScene, Interface, Misc, None };
 	
-	public enum AppearType { Manual, MouseOver, DuringConversation, OnInputKey, OnInteraction, OnHotspot, WhenSpeechPlays, DuringGameplay, OnContainer, WhileLoading, DuringCutscene, WhileInventorySelected, ExceptWhenPaused, DuringGameplayAndConversations, OnViewDocument };
+	public enum AppearType { Manual, MouseOver, DuringConversation, OnInputKey, OnInteraction, OnHotspot, WhenSpeechPlays, DuringGameplay, OnContainer, WhileLoading, DuringCutscene, WhileInventorySelected, ExceptWhenPaused, DuringGameplayAndConversations, OnViewDocument, DuringCutscenesAndConversations };
 	public enum SpeechMenuType { All, CharactersOnly, NarrationOnly, SpecificCharactersOnly, AllExceptSpecificCharacters };
 	public enum SpeechMenuLimit { All, BlockingOnly, BackgroundOnly };
 	public enum MenuTransition { Fade, Pan, FadeAndPan, Zoom, None };
@@ -117,7 +117,7 @@ namespace AC
 	public enum SetVarMethod { SetValue, IncreaseByValue, SetAsRandom, Formula };
 	public enum SetVarMethodString { EnteredHere=0, SetAsMenuElementText=1, CombinedWithOtherString=2 };
 	public enum SetVarMethodIntBool { EnteredHere=0, SetAsMecanimParameter=1 };
-	public enum SetParamMethod { EnteredHere=0, Random=2, CopiedFromGlobalVariable=1, CopiedFromLocalVariable=6, CopiedFromComponentVariable=5, CopiedFromParameter=3, CopiedFromAnimator=4 };
+	public enum SetParamMethod { EnteredHere=0, Random=2, CopiedFromGlobalVariable=1, CopiedFromLocalVariable=6, CopiedFromComponentVariable=5, CopiedFromParameter=3, CopiedFromAnimator=4, Formula=7 };
 	public enum GetVarMethod { EnteredValue, GlobalVariable, LocalVariable, ComponentVariable };
 	
 	public enum AC_Direction { None, Up, Down, Left, Right };
@@ -190,13 +190,14 @@ namespace AC
 	public enum TurningStyle { Linear, Script, RootMotion };
 	public enum DoubleClickingHotspot { MakesPlayerRun, TriggersInteractionInstantly, DoesNothing, IsRequiredToUse };
 	public enum BoolCondition { EqualTo, NotEqualTo };
+	public enum StringCondition { EqualTo, NotEqualTo, Contains };
 	public enum VectorCondition { EqualTo, MagnitudeGreaterThan };
 
 	public enum ManageProfileType { CreateProfile, DeleteProfile, RenameProfile, SwitchActiveProfile };
 	public enum DeleteProfileType { ActiveProfile, SetSlotIndex, SlotIndexFromVariable, SetProfileID };
 	public enum SaveCheck { NumberOfSaveGames, NumberOfProfiles, IsSavingPossible, IsSlotEmpty, DoesProfileExist, DoesProfileNameExist };
 	public enum ManageSaveType { DeleteSave, RenameSave };
-	public enum SelectSaveType { Autosave, SetSlotIndex, SlotIndexFromVariable, SetSaveID };
+	public enum SelectSaveType { Autosave, SetSlotIndex, SlotIndexFromVariable, SetSaveID, SaveIDFromVariable };
 	public enum SaveHandling { LoadGame, ContinueFromLastSave, OverwriteExistingSave, SaveNewGame };
 
 	public enum PlatformType { Desktop, TouchScreen, WebGL, Windows, Mac, Linux, iOS, Android, Editor };
@@ -213,7 +214,7 @@ namespace AC
 	public enum NavMeshSearchDirection { StraightDownFromCursor, RadiallyOutwardsFromCursor };
 	public enum MovieClipType { FullScreen, OnMaterial, VideoPlayer };
 	public enum SetJournalPage { FirstPage, LastPage, SetHere };
-	public enum InventoryPropertyType { SelectedItem, LastClickedItem, MouseOverItem, CustomScript };
+	public enum InventoryPropertyType { SelectedItem, LastClickedItem, MouseOverItem, CustomScript, SelectedObjective, SelectedDocument };
 	public enum UIHideStyle { DisableObject, ClearContent };
 	public enum UISelectableHideStyle { DisableObject, DisableInteractability };
 	public enum UIComponentHideStyle { DisableObject, DisableComponent };
@@ -292,8 +293,9 @@ namespace AC
 
 	public enum ExportFormat { CSV, XML };
 	public enum TouchScreenHotspotInput { TouchDown, TouchTwice, TouchUp };
-	public enum ObjectiveSorting { ByStartTime, ByUpdateTime, ByID };
+	public enum ObjectiveSorting { ByStartTime, ByUpdateTime, ByID, ByEditorIndex };
 	public enum ShowHierarchyIcons { All, ActionListsOnly, None };
 	public enum CharacterEvasionMethod { Carve, Push };
+	public enum LeftClickDeselect { Never, Always, ExceptOverMenus };
 
 }

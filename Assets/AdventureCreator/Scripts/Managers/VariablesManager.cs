@@ -56,8 +56,10 @@ namespace AC
 		private string filter = "";
 		private VariableType typeFilter;
 		private VarFilter varFilter;
+		private string[] categories;
+		private int categoryFilter;
 
-		public Vector2 scrollPos;
+		private Vector2 scrollPos;
 		private bool showGlobalTab = true;
 		private bool showLocalTab = false;
 
@@ -119,6 +121,10 @@ namespace AC
 					filter = EditorGUILayout.TextField (filter);
 				}
 				EditorGUILayout.EndHorizontal ();
+				if (categories != null && categories.Length > 1)
+				{
+					categoryFilter = EditorGUILayout.Popup("Category:", categoryFilter, categories);
+				}
 			}
 
 			CustomGUILayout.EndVertical ();
@@ -132,10 +138,10 @@ namespace AC
 				EditorGUILayout.Space ();
 			}
 
-
 			if (showGlobalTab)
 			{
 				varPresets = ShowPresets (varPresets, vars, VariableLocation.Global);
+				string _categoryFilter = categoryFilter > 0 && categories.Length > categoryFilter ? categories[categoryFilter] : string.Empty;
 
 				if (Application.isPlaying && updateRuntime && showGlobalTab && KickStarter.runtimeVariables == null)
 				{
@@ -143,18 +149,20 @@ namespace AC
 				}
 				else if (Application.isPlaying && updateRuntime && KickStarter.runtimeVariables != null)
 				{
-					selectedGlobalVar = ShowVariableListAndHeader (selectedGlobalVar, KickStarter.runtimeVariables.globalVars, VariableLocation.Global, varFilter, filter, typeFilter, false);
+					selectedGlobalVar = ShowVariableListAndHeader (selectedGlobalVar, KickStarter.runtimeVariables.globalVars, VariableLocation.Global, varFilter, filter, typeFilter, false, _categoryFilter);
 				}
 				else
 				{
 					CustomGUILayout.UpdateDrag (DragKey, lastDragOver, lastDragOver != null ? lastDragOver.label : string.Empty, ref ignoreDrag, OnCompleteDragGlobal);
-					selectedGlobalVar = ShowVariableListAndHeader (selectedGlobalVar, vars, VariableLocation.Global, varFilter, filter, typeFilter, true);
+					selectedGlobalVar = ShowVariableListAndHeader (selectedGlobalVar, vars, VariableLocation.Global, varFilter, filter, typeFilter, true, _categoryFilter);
 
 					foreach (VarPreset varPreset in varPresets)
 					{
 						varPreset.UpdateCollection (vars);
 					}
 				}
+
+				UpdateCategoriesArray();
 			}
 			else if (showLocalTab)
 			{
@@ -942,10 +950,12 @@ namespace AC
 		}
 
 
-		public static bool VarMatchesFilter (GVar _var, VarFilter _varFilter, string _filter, VariableType _typeFilter)
+		public static bool VarMatchesFilter (GVar _var, VarFilter _varFilter, string _filter, VariableType _typeFilter, string categoryFilter)
 		{
 			if (_var != null)
 			{
+				if (!string.IsNullOrEmpty (categoryFilter) && !_var.label.StartsWith (categoryFilter + "/")) return false;
+
 				switch (_varFilter)
 				{
 					case VarFilter.Label:
@@ -966,30 +976,30 @@ namespace AC
 		}
 
 
-		private GVar ShowVariableListAndHeader (GVar _selectedVar, List<GVar> _vars, VariableLocation _location, VarFilter _varFilter, string _filter, VariableType _typeFilter, bool allowEditing, Variables _variables = null)
+		private GVar ShowVariableListAndHeader (GVar _selectedVar, List<GVar> _vars, VariableLocation _location, VarFilter _varFilter, string _filter, VariableType _typeFilter, bool allowEditing, string categoryFilter = "", Variables _variables = null)
 		{
 			showVariablesList = CustomGUILayout.ToggleHeader (showVariablesList, _location + " variables");
 			if (showVariablesList)
 			{
 				CustomGUILayout.BeginVertical ();
-				_selectedVar = ShowVarList (_selectedVar, _vars, _location, _varFilter, _filter, _typeFilter, allowEditing, _variables, ref lastDragOver, ref lastSwapIndex, IsDragging ());
+				_selectedVar = ShowVarList (_selectedVar, _vars, _location, _varFilter, _filter, _typeFilter, allowEditing, categoryFilter, _variables, ref lastDragOver, ref lastSwapIndex, IsDragging ());
 				CustomGUILayout.EndVertical ();
 			}
 			return _selectedVar;
 		}
 
 
-		public static GVar ShowVarList (GVar _selectedVar, List<GVar> _vars, VariableLocation _location, VarFilter _varFilter, string _filter, VariableType _typeFilter, bool allowEditing, Variables _variables = null)
+		public static GVar ShowVarList (GVar _selectedVar, List<GVar> _vars, VariableLocation _location, VarFilter _varFilter, string _filter, VariableType _typeFilter, bool allowEditing, string categoryFilter, Variables _variables = null)
 		{
 			GVar lastDragOver = null;
 			int lastSwapIndex = -1;
 			bool isDragging = false;
 
-			return ShowVarList (_selectedVar, _vars, _location, _varFilter, _filter, _typeFilter, allowEditing, _variables, ref lastDragOver, ref lastSwapIndex, isDragging);
+			return ShowVarList (_selectedVar, _vars, _location, _varFilter, _filter, _typeFilter, allowEditing, categoryFilter, _variables, ref lastDragOver, ref lastSwapIndex, isDragging);
 		}
 
 
-		public static GVar ShowVarList (GVar _selectedVar, List<GVar> _vars, VariableLocation _location, VarFilter _varFilter, string _filter, VariableType _typeFilter, bool allowEditing, Variables _variables, ref GVar lastDragOver, ref int _lastSwapIndex, bool isDragging)
+		public static GVar ShowVarList (GVar _selectedVar, List<GVar> _vars, VariableLocation _location, VarFilter _varFilter, string _filter, VariableType _typeFilter, bool allowEditing, string categoryFilter, Variables _variables, ref GVar lastDragOver, ref int _lastSwapIndex, bool isDragging)
 		{
 			if (Event.current.type == EventType.Repaint)
 			{
@@ -1000,7 +1010,7 @@ namespace AC
 			int numInFilter = 0;
 			foreach (GVar _var in _vars)
 			{
-				_var.showInFilter = VarMatchesFilter (_var, _varFilter, _filter, _typeFilter);
+				_var.showInFilter = VarMatchesFilter (_var, _varFilter, _filter, _typeFilter, categoryFilter);
 				if (_var.showInFilter)
 				{
 					numInFilter ++;
@@ -1483,7 +1493,7 @@ namespace AC
 					{
 						labelList.Add (_varPreset.ID.ToString () + ": " + ((!string.IsNullOrEmpty (_varPreset.label)) ? _varPreset.label : "(Untitled)"));
 						
-						if (_varPreset.ID == chosenPresetID)
+						if (_varPreset.ID == chosenPresetID || presetNumber == -1)
 						{
 							presetNumber = i;
 						}
@@ -1750,6 +1760,24 @@ namespace AC
 				return true;
 			}
 			return false;
+		}
+
+
+		private void UpdateCategoriesArray ()
+		{
+			List<string> categoriesList = new List<string> ();
+			categoriesList.Add ("(None)");
+			foreach (var variable in vars)
+			{
+				if (variable.label.Contains ("/"))
+				{
+					int slashIndex = variable.label.IndexOf ("/");
+					string category = variable.label.Substring(0, slashIndex);
+					if (!categoriesList.Contains(category))
+						categoriesList.Add(category);
+				}
+			}
+			categories = categoriesList.ToArray();
 		}
 
 		#endif

@@ -19,7 +19,7 @@ namespace AC
 	{
 
 		private static Rect debugWindowRect = new Rect (0, 0, 260, 500);
-		private static GUISkin sceneManagerSkin = null;
+		private const float OptimalScaleFactor = 0.25f;
 
 
 		/** Draws the debug window in the top-left corner of the Game window */
@@ -34,6 +34,11 @@ namespace AC
 				}
 				#endif
 				GUI.depth = KickStarter.menuManager.globalDepth + 1;
+
+				float scaleFactor = debugWindowRect.width / Screen.width;
+				float scaleDiff = OptimalScaleFactor / scaleFactor;
+				GUIUtility.ScaleAroundPivot (Vector2.one * scaleDiff, Vector2.zero);
+				
 				debugWindowRect.height = 21f;
 				debugWindowRect = GUILayout.Window (10, debugWindowRect, StatusWindow, "AC status", GUILayout.Width (260));
 			}
@@ -42,12 +47,6 @@ namespace AC
 
 		private static void StatusWindow (int windowID)
 		{
-			if (sceneManagerSkin == null)
-			{
-				sceneManagerSkin = (GUISkin) Resources.Load ("SceneManagerSkin");
-			}
-			GUI.skin = sceneManagerSkin;
-
 			GUILayout.Label ("Current game state: " + KickStarter.stateHandler.gameState.ToString ());
 
 			Options.DrawStatus ();
@@ -77,6 +76,7 @@ namespace AC
 			}
 
 			KickStarter.playerInput.DrawStatus ();
+			KickStarter.playerQTE.DrawStatus ();
 			
 			GUILayout.Space (4f);
 

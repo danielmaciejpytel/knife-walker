@@ -1,7 +1,7 @@
 ﻿/*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2025
  *	
  *	"ActionListManager.cs"
  * 
@@ -28,11 +28,8 @@ namespace AC
 
 		#region Variables
 
-		/** If True, then the next time ActionConversation's Skip() function is called, it will be ignored */
-		[HideInInspector] public bool ignoreNextConversationSkip = false;
-
 		private List<GameObject> skippableCutsceneSpawnedObjects = new List<GameObject> ();
-		private List<NestedAwaitingActiveList> nestedAwaitingActiveLists = new List<NestedAwaitingActiveList> ();
+		public NestedAwaitingActiveList currentConversationActiveList { get; set; }
 
 		protected bool playCutsceneOnVarChange = false;
 		protected bool saveAfterCutscene = false;
@@ -91,7 +88,7 @@ namespace AC
 			if (actionList == null) return false;
 
 			RuntimeActionList runtimeActionList = actionList as RuntimeActionList;
-			if (runtimeActionList != null)
+			if (runtimeActionList != null && KickStarter.actionListAssetManager)
 			{
 				foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
 				{
@@ -126,7 +123,7 @@ namespace AC
 			if (actionList == null) return false;
 
 			RuntimeActionList runtimeActionList = actionList as RuntimeActionList;
-			if (runtimeActionList != null)
+			if (runtimeActionList && KickStarter.actionListAssetManager)
 			{
 				foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
 				{
@@ -153,7 +150,7 @@ namespace AC
 		public bool CanResetSkipVars (ActionList actionList)
 		{
 			RuntimeActionList runtimeActionList = actionList as RuntimeActionList;
-			if (runtimeActionList != null)
+			if (runtimeActionList && KickStarter.actionListAssetManager)
 			{
 				foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
 				{
@@ -181,48 +178,6 @@ namespace AC
 		}
 
 
-		public void SetActionPendingState (NestedAwaitingActiveList _nestedAwaitingActiveList, bool state)
-		{
-			if (state)
-			{
-				foreach (var nestedAwaitingActiveList in nestedAwaitingActiveLists)
-				{
-					if (nestedAwaitingActiveList.ActiveList == _nestedAwaitingActiveList.ActiveList &&
-						nestedAwaitingActiveList.Conversation == _nestedAwaitingActiveList.Conversation &&
-						nestedAwaitingActiveList.ActionList == _nestedAwaitingActiveList.ActionList)
-					{
-						return;
-					}
-				}
-				
-				nestedAwaitingActiveLists.Add (_nestedAwaitingActiveList);
-			}
-			else
-			{
-				foreach (var nestedAwaitingActiveList in nestedAwaitingActiveLists)
-				{
-					if (nestedAwaitingActiveList.ActiveList == _nestedAwaitingActiveList.ActiveList &&
-						nestedAwaitingActiveList.Conversation == _nestedAwaitingActiveList.Conversation &&
-						nestedAwaitingActiveList.ActionList == _nestedAwaitingActiveList.ActionList)
-					{
-						nestedAwaitingActiveLists.Remove (nestedAwaitingActiveList);
-						return;
-					}
-				}
-			}
-		}
-
-
-		public bool IsNestedAwaiting (ActiveList activeList)
-		{
-			foreach (var nestedAwaitingActiveList in nestedAwaitingActiveLists)
-			{
-				if (nestedAwaitingActiveList.ActiveList == activeList) return true;
-			}
-			return false;
-		}
-
-
 		/**
 		 * <summary>Checks if any currently-running ActionLists pause gameplay.</summary>
 		 * <param name = "_actionToIgnore">Any ActionList that contains this Action will be excluded from the check</param>
@@ -235,18 +190,20 @@ namespace AC
 			{
 				if (activeList.actionList.actionListType == ActionListType.PauseGameplay && activeList.IsRunning ())
 				{
-					bool foundPending = false;
-					foreach (var pendingList in nestedAwaitingActiveLists)
+					if (currentConversationActiveList != null && currentConversationActiveList.ActiveList == activeList)
 					{
-						if (pendingList.ActiveList == activeList && (pendingList.Conversation == null || pendingList.Conversation.IsOverridingActionList (pendingList.ActionList)))
+						if (currentConversationActiveList.Conversation && currentConversationActiveList.Conversation == KickStarter.playerInput.activeConversation)
 						{
-							foundPending = true;
-							break;
+							return false;
 						}
 					}
+				}
+			}
 
-					if (foundPending) continue;
-
+			foreach (ActiveList activeList in activeLists)
+			{
+				if (activeList.actionList.actionListType == ActionListType.PauseGameplay && activeList.IsRunning())
+				{
 					if (_actionToIgnore != null)
 					{
 						if (activeList.actionList.actions.Contains (_actionToIgnore))
@@ -263,23 +220,40 @@ namespace AC
 				}
 			}
 
-			foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
+			if (KickStarter.actionListAssetManager)
 			{
-				if (activeList.actionList != null && activeList.actionList.actionListType == ActionListType.PauseGameplay && activeList.IsRunning ())
+				foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
 				{
-					if (_actionToIgnore != null)
+					if (activeList.actionList != null && activeList.actionList.actionListType == ActionListType.PauseGameplay && activeList.IsRunning ())
 					{
-						if (activeList.actionList.actions.Contains (_actionToIgnore))
+						if (currentConversationActiveList != null && currentConversationActiveList.ActiveList == activeList)
 						{
-							continue;
+							if (currentConversationActiveList.Conversation && currentConversationActiveList.Conversation == KickStarter.playerInput.activeConversation)
+							{
+								return false;
+							}
 						}
 					}
+				}
 
-					if (showSaveDebug)
+				foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
+				{
+					if (activeList.actionList != null && activeList.actionList.actionListType == ActionListType.PauseGameplay && activeList.IsRunning())
 					{
-						ACDebug.LogWarning ("Cannot save at this time - the ActionListAsset '" + activeList.actionList.name + "' is blocking gameplay.", activeList.actionList);
+						if (_actionToIgnore != null)
+						{
+							if (activeList.actionList.actions.Contains (_actionToIgnore))
+							{
+								continue;
+							}
+						}
+
+						if (showSaveDebug)
+						{
+							ACDebug.LogWarning ("Cannot save at this time - the ActionListAsset '" + activeList.actionList.name + "' is blocking gameplay.", activeList.actionList);
+						}
+						return true;
 					}
-					return true;
 				}
 			}
 
@@ -301,11 +275,14 @@ namespace AC
 				}
 			}
 
-			foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
+			if (KickStarter.actionListAssetManager)
 			{
-				if (activeList.CanUnfreezePauseMenus () && activeList.IsRunning ())
+				foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
 				{
-					return true;
+					if (activeList.CanUnfreezePauseMenus () && activeList.IsRunning ())
+					{
+						return true;
+					}
 				}
 			}
 			return false;
@@ -336,14 +313,17 @@ namespace AC
 				}
 			}
 
-			foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
+			if (KickStarter.actionListAssetManager)
 			{
-				if (activeList.IsRunning () && activeList.actionListAsset != null && activeList.actionListAsset.IsSkippable ())
+				foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
 				{
-					return true;
+					if (activeList.IsRunning () && activeList.actionListAsset != null && activeList.actionListAsset.IsSkippable ())
+					{
+						return true;
+					}
 				}
 			}
-			
+
 			return false;
 		}
 
@@ -419,9 +399,13 @@ namespace AC
 			{
 				activeList.Reset (true);
 			}
-			foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
+
+			if (KickStarter.actionListAssetManager)
 			{
-				activeList.Reset (true);
+				foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
+				{
+					activeList.Reset (true);
+				}
 			}
 		}
 
@@ -568,6 +552,7 @@ namespace AC
 		{
 			saveAfterCutscene = false;
 			playCutsceneOnVarChange = false;
+			currentConversationActiveList = null;
 
 			if (subScene == null)
 			{
@@ -640,11 +625,14 @@ namespace AC
 				}
 			}
 
-			foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
+			if (KickStarter.actionListAssetManager)
 			{
-				if (activeList.actionList && activeList.actionList.IsSkipping)
+				foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
 				{
-					return true;
+					if (activeList.actionList && activeList.actionList.IsSkipping)
+					{
+						return true;
+					}
 				}
 			}
 
@@ -664,7 +652,7 @@ namespace AC
 			}
 			PurgeLists ();
 
-			RunVarChange (KickStarter.stateHandler.gameState);
+			RunVarChange ();
 		}
 
 
@@ -676,11 +664,11 @@ namespace AC
 				SaveSystem.SaveAutoSave ();
 			}
 
-			RunVarChange (gameState);
+			RunVarChange ();
 		}
 
 
-		protected void RunVarChange (GameState gameState)
+		protected void RunVarChange ()
 		{
 			playCutsceneOnVarChange = false;
 			/*if (playCutsceneOnVarChange && (gameState == GameState.Normal || gameState == GameState.DialogOptions))
@@ -714,12 +702,16 @@ namespace AC
 					i--;
 				}
 			}
-			for (int i=0; i<KickStarter.actionListAssetManager.ActiveLists.Count; i++)
+
+			if (KickStarter.actionListAssetManager)
 			{
-				if (!KickStarter.actionListAssetManager.ActiveLists[i].IsNecessary ())
+				for (int i=0; i<KickStarter.actionListAssetManager.ActiveLists.Count; i++)
 				{
-					KickStarter.actionListAssetManager.ActiveLists.RemoveAt (i);
-					i--;
+					if (!KickStarter.actionListAssetManager.ActiveLists[i].IsNecessary ())
+					{
+						KickStarter.actionListAssetManager.ActiveLists.RemoveAt (i);
+						i--;
+					}
 				}
 			}
 
@@ -741,20 +733,27 @@ namespace AC
 		{
 			if (ignoreBlockCheck || !IsGameplayBlocked ())
 			{
-				ignoreNextConversationSkip = false;
 				foreach (ActiveList activeList in activeLists)
 				{
 					activeList.inSkipQueue = false;
 				}
-				foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
+
+				if (KickStarter.actionListAssetManager)
 				{
-					activeList.inSkipQueue = false;
+					foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
+					{
+						activeList.inSkipQueue = false;
+					}
 				}
 
 				skippableCutsceneSpawnedObjects.Clear ();
 
 				GlobalVariables.BackupAll ();
-				KickStarter.localVariables.BackupAllValues ();
+
+				if (KickStarter.localVariables)
+				{
+					KickStarter.localVariables.BackupAllValues ();
+				}
 			}
 		}
 
@@ -769,14 +768,17 @@ namespace AC
 				}
 			}
 
-			foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
+			if (KickStarter.actionListAssetManager)
 			{
-				if (activeList.IsRunning () && activeList.inSkipQueue)
+				foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
 				{
-					return true;
+					if (activeList.IsRunning () && activeList.inSkipQueue)
+					{
+						return true;
+					}
 				}
 			}
-			
+
 			return false;
 		}
 
@@ -850,30 +852,74 @@ namespace AC
 			}
 			skippableCutsceneSpawnedObjects.Clear ();
 
-			List<ActiveList> listsToSkip = new List<ActiveList> ();
-			List<ActiveList> listsToReset = new List<ActiveList> ();
+			HashSet<ActiveList> listsToSkip = new HashSet<ActiveList> ();
+			HashSet<ActiveList> listsToReset = new HashSet<ActiveList> ();
+
+			if (currentConversationActiveList != null)
+			{
+				currentConversationActiveList.ActiveList.inSkipQueue = true;
+				currentConversationActiveList.ActiveList.startIndex = currentConversationActiveList.ActionList.actions.IndexOf (currentConversationActiveList.Action);
+				listsToSkip.Add(currentConversationActiveList.ActiveList);
+			}
 
 			foreach (ActiveList activeList in activeLists)
 			{
-				if (!activeList.inSkipQueue && activeList.actionList.IsSkippable ())
+				if (currentConversationActiveList != null)
 				{
-					listsToReset.Add (activeList);
+					if (activeList.actionList.IsSkippable())
+					{
+						if (activeList == currentConversationActiveList.ActiveList)
+						{
+							listsToSkip.Add(activeList);
+						}
+						else
+						{
+							listsToReset.Add(activeList);
+						}
+					}
 				}
 				else
 				{
-					listsToSkip.Add (activeList);
+					if (!activeList.inSkipQueue && activeList.actionList.IsSkippable())
+					{
+						listsToReset.Add(activeList);
+					}
+					else if (activeList.actionList.IsSkippable())
+					{
+						listsToSkip.Add(activeList);
+					}
 				}
 			}
 
-			foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
+			if (KickStarter.actionListAssetManager)
 			{
-				if (!activeList.inSkipQueue && activeList.actionList.IsSkippable ())
+				foreach (ActiveList activeList in KickStarter.actionListAssetManager.ActiveLists)
 				{
-					listsToReset.Add (activeList);
-				}
-				else
-				{
-					listsToSkip.Add (activeList);
+					if (currentConversationActiveList != null)
+					{
+						if (activeList.actionList.IsSkippable())
+						{
+							if (activeList == currentConversationActiveList.ActiveList)
+							{
+								listsToSkip.Add(activeList);
+							}
+							else
+							{
+								listsToReset.Add(activeList);
+							}
+						}
+					}
+					else
+					{
+						if (!activeList.inSkipQueue && activeList.actionList.IsSkippable())
+						{
+							listsToReset.Add(activeList);
+						}
+						else if (activeList.actionList.IsSkippable())
+						{
+							listsToSkip.Add(activeList);
+						}
+					}
 				}
 			}
 
@@ -935,12 +981,14 @@ namespace AC
 			public readonly ActiveList ActiveList;
 			public readonly Conversation Conversation;
 			public readonly ActionList ActionList;
+			public readonly Action Action;
 
-			public NestedAwaitingActiveList (ActiveList activeList, Conversation conversation, ActionList actionList)
+			public NestedAwaitingActiveList(ActiveList activeList, Conversation conversation, ActionList actionList, Action action)
 			{
 				ActiveList = activeList;
 				Conversation = conversation;
 				ActionList = actionList;
+				Action = action;
 			}
 		}
 

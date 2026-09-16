@@ -26,13 +26,13 @@ namespace AC
 		public string label = "(Not set)";
 		/** The translation ID number of the display label, as set by SpeechManager */
 		public int lineID = -1;
-		/** Deprecated */
-		public Texture2D icon;
+		[SerializeField] private Texture2D icon;
 		/** The option's display icon */
 		public CursorIconBase cursorIcon;
 		/** If True, the option is enabled, and will be displayed in a MenuDialogList element */
 		public bool isOn;
 		/** If True, the option is locked, and cannot be enabled or disabled */
+		private bool isOnByDefault;
 		public bool isLocked;
 		/** What happens when the DialogueOption ActionList has finished (ReturnToConversation, Stop, RunOtherConversation) */
 		public ConversationAction conversationAction;
@@ -41,7 +41,7 @@ namespace AC
 		/** An ID number unique to this instance of ButtonDialog within a Conversation */
 		public int ID = 0;
 		/** If True, then the option has been chosen at least once by the player */
-		public bool hasBeenChosen = false;
+		[System.NonSerialized] public bool hasBeenChosen = false;
 		/** If True, then the option will be disabled once chosen by the player */
 		public bool autoTurnOff = false;
 
@@ -69,11 +69,11 @@ namespace AC
 		 * <summary>The default Constructor.</summary>
 		 * <param name = "idArray">An array of existing ID numbers, so that a unique ID number can be assigned</param>
 		 */
-		public ButtonDialog (int[] idArray)
+		public ButtonDialog(int[] idArray)
 		{
 			label = "";
 			icon = null;
-			cursorIcon = new CursorIconBase ();
+			cursorIcon = new CursorIconBase();
 			isOn = true;
 			isLocked = false;
 			conversationAction = ConversationAction.ReturnToConversation;
@@ -88,7 +88,7 @@ namespace AC
 			{
 				if (ID == _id)
 				{
-					ID ++;
+					ID++;
 				}
 			}
 		}
@@ -102,11 +102,11 @@ namespace AC
 		 * <param name = "_dialogueOption">The DialogueOption to run when the option is chosen</param>
 		 * <param name = "_endsConversation">If True, the Conversation will end after the DialogueOption has finished running</param>
 		 */
-		public ButtonDialog (int _ID, string _label, bool _startEnabled, DialogueOption _dialogueOption, bool _endsConversation)
+		public ButtonDialog(int _ID, string _label, bool _startEnabled, DialogueOption _dialogueOption, bool _endsConversation)
 		{
 			label = _label;
 			icon = null;
-			cursorIcon = new CursorIconBase ();
+			cursorIcon = new CursorIconBase();
 			isOn = _startEnabled;
 			isLocked = false;
 
@@ -128,11 +128,11 @@ namespace AC
 		 * <param name = "_actionListAsset">The ActionListAsset to run when the option is chosen</param>
 		 * <param name = "_endsConversation">If True, the Conversation will end after the ActionListAsset has finished running</param>
 		 */
-		public ButtonDialog (int _ID, string _label, bool _startEnabled, ActionListAsset _actionListAsset, bool _endsConversation)
+		public ButtonDialog(int _ID, string _label, bool _startEnabled, ActionListAsset _actionListAsset, bool _endsConversation)
 		{
 			label = _label;
 			icon = null;
-			cursorIcon = new CursorIconBase ();
+			cursorIcon = new CursorIconBase();
 			isOn = _startEnabled;
 			isLocked = false;
 
@@ -152,11 +152,11 @@ namespace AC
 		 * <param name = "_label">The option's display text</param>
 		 * <param name = "_isOn">If True, the option will be enabled</param>
 		 */
-		public ButtonDialog (int _ID, string _label, bool _isOn)
+		public ButtonDialog(int _ID, string _label, bool _isOn)
 		{
 			label = _label;
 			icon = null;
-			cursorIcon = new CursorIconBase ();
+			cursorIcon = new CursorIconBase();
 			isOn = _isOn;
 			isLocked = false;
 
@@ -178,7 +178,7 @@ namespace AC
 		 * <summary>Checks if the dialogue option can be currently shown.</summary>
 		 * <returns>True if the dialogue option can be currently shown</returns>
 		 */
-		public bool CanShow ()
+		public bool CanShow()
 		{
 			if (isOn)
 			{
@@ -187,7 +187,7 @@ namespace AC
 					return true;
 				}
 
-				if (linkToInventory && KickStarter.runtimeInventory != null && KickStarter.runtimeInventory.IsCarryingItem (linkedInventoryID))
+				if (linkToInventory && KickStarter.runtimeInventory != null && KickStarter.runtimeInventory.IsCarryingItem(linkedInventoryID))
 				{
 					return true;
 				}
@@ -200,7 +200,7 @@ namespace AC
 		 * <summary>Upgrades the class to make use of cursorIcon instead of icon as the texture to display</summary>
 		 * <returns>True if the class was upgraded</returns>
 		 */
-		public bool Upgrade ()
+		public bool Upgrade()
 		{
 			if (icon != null)
 			{
@@ -212,6 +212,21 @@ namespace AC
 				icon = null;
 			}
 			return false;
+		}
+
+
+		/** Records the option's starting/default state */
+		public void RecordStartingState()
+		{
+			isOnByDefault = isOn;
+		}
+
+
+		/** Restores the option to its starting/default state */
+		public void RestoreStartingState()
+		{
+			isOn = isOnByDefault;
+			isLocked = false;
 		}
 
 		#endregion

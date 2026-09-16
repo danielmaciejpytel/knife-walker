@@ -356,15 +356,15 @@ namespace AC
 				case ReferenceSpeechFiles.ByAddressable:
 					if (!SeparatePlayerAudio () && !string.IsNullOrEmpty (customFilename))
 					{
-						if (Application.isPlaying && KickStarter.speechManager.translateAudio && Options.GetLanguage () > 0)
+						if (Application.isPlaying && KickStarter.speechManager.translateAudio && Options.GetVoiceLanguage () > 0)
 						{
-							return customFilename + "_" + Options.GetLanguageName ();
+							return customFilename + "_" + Options.GetVoiceLanguageName ();
 						}
 						return customFilename;
 					}
-					if (Application.isPlaying && KickStarter.speechManager.translateAudio && Options.GetLanguage () > 0)
+					if (Application.isPlaying && KickStarter.speechManager.translateAudio && Options.GetVoiceLanguage () > 0)
 					{
-						return GetSubfolderPath (overrideName) + lineID.ToString () + "_" + Options.GetLanguageName ();
+						return GetSubfolderPath (overrideName) + lineID.ToString () + "_" + Options.GetVoiceLanguageName ();
 					}
 					break;
 

@@ -54,9 +54,7 @@ namespace AC
 
 		#region PublicFunctions
 
-		/**
-		 * Places the Player at the GameObject's position, and activates the assigned cameraOnStart.
-		 */
+		/** Places the Player at the GameObject's position, and activates the assigned cameraOnStart. */
 		public void PlacePlayerAt ()
 		{
 			if (KickStarter.mainCamera)
@@ -107,7 +105,7 @@ namespace AC
 		}
 
 
-		public bool MatchesPreviousScene (int _playerID, bool canAcceptEmpty = false)
+		public virtual bool MatchesPreviousScene (int _playerID, bool canAcceptEmpty = false)
 		{
 			if (KickStarter.settingsManager.playerSwitching == PlayerSwitching.Allow)
 			{

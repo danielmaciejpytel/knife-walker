@@ -20,6 +20,7 @@ namespace AC
 			_target.disableHotspots = CustomGUILayout.ToggleLeft ("Disable Hotspots when active?", _target.disableHotspots, "", "If True, then Hotspots will be disabled when the arrows are on screen");
 			_target.positionFactor = CustomGUILayout.Slider ("Position factor:", _target.positionFactor, 0.5f, 4f, "", "A factor for the arrow position");
 			_target.scaleFactor = CustomGUILayout.Slider ("Scale factor:", _target.scaleFactor, 0.5f, 4f, "", "A factor for the arrow size");
+			_target.stretchFactor = CustomGUILayout.Slider ("Stretch factor:", _target.stretchFactor, 0.5f, 4f, "", "A factor for the arrow stretch");
 			_target.source = (ActionListSource) CustomGUILayout.EnumPopup ("Actions source:", _target.source, "", "Where the Actions are stored when not being run");
 			CustomGUILayout.EndVertical ();
 

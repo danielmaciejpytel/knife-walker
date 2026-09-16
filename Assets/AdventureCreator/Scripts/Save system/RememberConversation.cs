@@ -44,14 +44,16 @@ namespace AC
 			List<bool> optionChosens = new List<bool>();
 			List<string> optionLabels = new List<string>();
 			List<int> optionLineIDs = new List<int>();
+			List<int> optionIDs = new List<int>();
 
 			foreach (ButtonDialog _option in Conversation.options)
 			{
-				optionStates.Add (_option.isOn);
-				optionLocks.Add (_option.isLocked);
-				optionChosens.Add (_option.hasBeenChosen);
-				optionLabels.Add (_option.label);
-				optionLineIDs.Add (_option.lineID);
+				optionStates.Add(_option.isOn);
+				optionLocks.Add(_option.isLocked);
+				optionChosens.Add(_option.hasBeenChosen);
+				optionLabels.Add(_option.label);
+				optionLineIDs.Add(_option.lineID);
+				optionIDs.Add(_option.ID);
 			}
 
 			conversationData._optionStates = ArrayToString <bool> (optionStates.ToArray ());
@@ -59,6 +61,7 @@ namespace AC
 			conversationData._optionChosens = ArrayToString <bool> (optionChosens.ToArray ());
 			conversationData._optionLabels = ArrayToString <string> (optionLabels.ToArray ());
 			conversationData._optionLineIDs = ArrayToString <int> (optionLineIDs.ToArray ());
+			conversationData._optionIDs = ArrayToString<int> (optionIDs.ToArray());
 
 			conversationData.lastOption = Conversation.lastOption;
 
@@ -79,32 +82,47 @@ namespace AC
 			bool[] optionChosens = StringToBoolArray (data._optionChosens);
 			string[] optionLabels = StringToStringArray (data._optionLabels);
 			int[] optionLineIDs = StringToIntArray (data._optionLineIDs);
+			int[] optionIDs = StringToIntArray (data._optionIDs);
 
-			for (int i=0; i< Conversation.options.Count; i++)
+			foreach (var option in Conversation.options)
 			{
+				int i = Conversation.options.IndexOf(option);
+
+				if (optionIDs != null)
+				{
+					for (int j = 0; j < optionIDs.Length; j++)
+					{
+						if (optionIDs[j] == option.ID)
+						{
+							i = j;
+							break;
+						}
+					}
+				}
+				else Debug.Log("Ignore");
+
 				if (optionStates != null && optionStates.Length > i)
 				{
-					Conversation.options[i].isOn = optionStates[i];
+					option.isOn = optionStates[i];
 				}
 
 				if (optionLocks != null && optionLocks.Length > i)
 				{
-					Conversation.options[i].isLocked = optionLocks[i];
+					option.isLocked = optionLocks[i];
 				}
 
 				if (optionChosens != null && optionChosens.Length > i)
 				{
-					Conversation.options[i].hasBeenChosen = optionChosens[i];
-				}
-
-				if (optionLabels != null && optionLabels.Length > i)
-				{
-					Conversation.options[i].label = optionLabels[i];
+					option.hasBeenChosen = optionChosens[i];
 				}
 
 				if (optionLineIDs != null && optionLineIDs.Length > i)
 				{
-					Conversation.options[i].lineID = optionLineIDs[i];
+					if (optionLineIDs[i] >= 0)
+					{
+						option.label = optionLabels[i];
+						option.lineID = optionLineIDs[i];
+					}
 				}
 			}
 
@@ -167,11 +185,13 @@ namespace AC
 		public string _optionLabels;
 		/** The line IDs of each DialogOption */
 		public string _optionLineIDs;
+		/** The IDs of each DialogOption */
+		public string _optionIDs;
 
 		/**
 		 * The default Constructor.
 		 */
-		public ConversationData () { }
+		public ConversationData() { }
 	}
 
 }

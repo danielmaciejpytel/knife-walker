@@ -135,18 +135,33 @@ namespace AC.Templates.MobileJoystick
 
 		private Vector2 GetTouchPosition ()
 		{
-#if !UNITY_EDITOR
+#if InputSystemIsPresent
+	#if !UNITY_EDITOR
+			foreach (var touch in UnityEngine.InputSystem.EnhancedTouch.Touch.activeTouches)
+			{
+				if (touch.finger.index == fingerID)
+				{
+					return touch.screenPosition;
+				}
+			}
+			return startPosition;
+	#else
+			return UnityEngine.InputSystem.Mouse.current.position.ReadValue ();
+	#endif
+#else
+	#if !UNITY_EDITOR
 			for (int i = 0; i < Input.touchCount; i++)
 			{
-				Touch touch = Input.GetTouch (i);
+				var touch = Input.GetTouch (i);
 				if (touch.fingerId == fingerID)
 				{
 					return touch.position;
 				}
 			}
 			return startPosition;
-#else
+	#else
 			return Input.mousePosition;
+	#endif
 #endif
 		}
 
@@ -154,14 +169,24 @@ namespace AC.Templates.MobileJoystick
 		private Vector2 GetTouchDrag ()
 		{
 #if !UNITY_EDITOR
+	#if InputSystemIsPresent
+			foreach (var touch in UnityEngine.InputSystem.EnhancedTouch.Touch.activeTouches)
+			{
+				if (touch.finger.index == fingerID)
+				{
+					return touch.delta;
+				}
+			}
+	#else
 			for (int i = 0; i < Input.touchCount; i++)
 			{
-				Touch touch = Input.GetTouch (i);
+				var touch = Input.GetTouch (i);
 				if (touch.fingerId == fingerID)
 				{
 					return touch.deltaPosition;
 				}
 			}
+	#endif
 			return Vector2.zero;
 #else
 			return GetTouchPosition () - lastFramePosition;

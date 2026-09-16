@@ -1,7 +1,7 @@
 /*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2026
  *	
  *	"LevelStorage.cs"
  * 
@@ -428,6 +428,7 @@ namespace AC
 				UnloadPlayerStart (levelData.playerStart, sceneSettings);
 				UnloadSortingMap (levelData.sortingMap, sceneSettings);
 				UnloadTintMap (levelData.tintMap, sceneSettings);
+				UnloadSelectionParent (levelData.selectionParent, sceneSettings.GetComponent<PlayerInteraction>());
 			}
 
 			if (localVariables)
@@ -496,8 +497,12 @@ namespace AC
 				{
 					thisLevelData.tintMap = Serializer.GetConstantID (sceneSettings.tintMap.gameObject, false);
 				}
+				if (sceneSettings.GetComponent<PlayerInteraction>().selectionParent)
+				{
+					thisLevelData.selectionParent = Serializer.GetConstantID (sceneSettings.GetComponent<PlayerInteraction>().selectionParent.gameObject, false);
+				}
 			}
-
+			
 			if (localVariables)
 			{ 
 				thisLevelData.localVariablesData = SaveSystem.CreateVariablesData (localVariables.localVars, false, VariableLocation.Local);
@@ -569,6 +574,13 @@ namespace AC
 			{
 				sceneSettings.SetTintMap (tintMap);
 			}
+		}
+		
+		
+		private void UnloadSelectionParent (int selectionParentInt, PlayerInteraction playerInteraction)
+		{
+			Transform selectionParent = ConstantID.GetComponent <Transform> (selectionParentInt, playerInteraction.gameObject.scene);
+			playerInteraction.selectionParent = selectionParent;
 		}
 
 
@@ -943,6 +955,8 @@ namespace AC
 		public int onStartCutscene;
 		/** Data regarding paused and skipping ActionLists */
 		public string activeLists;
+		/** The ConstantID number of the PlayerInteraction's selectionParent Transform */
+		public int selectionParent;
 
 		/** The values of the scene's local Variables, combined into a single string */
 		public string localVariablesData;
@@ -1019,6 +1033,7 @@ namespace AC
 			CustomGUILayout.MultiLineLabelGUI ("Default TintMap:", tintMap.ToString ());
 			CustomGUILayout.MultiLineLabelGUI ("OnStart Cutscene:", onStartCutscene.ToString ());
 			CustomGUILayout.MultiLineLabelGUI ("OnLoad Cutscene:", onLoadCutscene.ToString ());
+			CustomGUILayout.MultiLineLabelGUI ("Selection parent:", selectionParent.ToString ());
 
 			if (allScriptData != null && allScriptData.Count > 0)
 			{

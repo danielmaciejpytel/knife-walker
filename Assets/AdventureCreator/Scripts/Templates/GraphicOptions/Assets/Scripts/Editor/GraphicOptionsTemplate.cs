@@ -75,6 +75,11 @@ namespace AC.Templates.GraphicOptions
 				return;
 			}
 
+			if (graphicOptionsMenu.pauseWhenEnabled && Resource.References.settingsManager.inputMethod == InputMethod.KeyboardOrController)
+			{
+				graphicOptionsMenu.firstSelectedElement = "BackButton";
+			}
+
 			Menu optionsMenu = Resource.References.menuManager.GetMenuWithName ("Options");
 			if (optionsMenu != null)
 			{
@@ -88,6 +93,8 @@ namespace AC.Templates.GraphicOptions
 					backButtonName = "BackButton";
 				}
 
+				bool madeChanges = false;
+
 				if (!string.IsNullOrEmpty (backButtonName))
 				{
 					if (canDeleteOldAssets || EditorUtility.DisplayDialog ("Update Options menu?", "Would you like the Options menu to be updated with an additional Button to access the Graphic Options menu?", "Yes", "No"))
@@ -98,10 +105,43 @@ namespace AC.Templates.GraphicOptions
 							optionsButton.label = "Graphic options";
 							optionsButton.buttonClickType = AC_ButtonClickType.Crossfade;
 							optionsButton.switchMenuTitle = graphicOptionsMenu.title;
-							EditorUtility.SetDirty (Resource.References.menuManager);
-							AssetDatabase.SaveAssets ();
+							madeChanges = true;
 						}
 					}
+				}
+
+				var qualityCycle = graphicOptionsMenu.GetElementWithName("Quality") as MenuCycle;
+				if (qualityCycle != null)
+				{
+					qualityCycle.ShowGUI (graphicOptionsMenu, null); // Relink new UI objects
+
+					qualityCycle.optionsArray.Clear();
+					foreach (var qualitySetting in QualitySettings.names)
+					{
+						qualityCycle.optionsArray.Add(qualitySetting);
+					}
+					qualityCycle.optionsArray.Add("Custom");
+					
+					var dropdown = graphicOptionsMenu.PrefabCanvas.GetComponent<GraphicOptionsUI> ().qualityPresetDropdown.GetComponent<UnityEngine.UI.Dropdown>();
+					if (dropdown)
+					{
+						dropdown.options.Clear();
+						foreach (var qualitySetting in QualitySettings.names)
+						{
+							dropdown.options.Add(new UnityEngine.UI.Dropdown.OptionData (qualitySetting));
+						}
+						dropdown.options.Add(new UnityEngine.UI.Dropdown.OptionData ("Custom"));
+						EditorUtility.SetDirty (dropdown);
+						EditorUtility.SetDirty (graphicOptionsMenu.PrefabCanvas);
+					}
+
+					madeChanges = true;
+				}
+
+				if (madeChanges)
+				{
+					EditorUtility.SetDirty (Resource.References.menuManager);
+					AssetDatabase.SaveAssets ();
 				}
 			}
 

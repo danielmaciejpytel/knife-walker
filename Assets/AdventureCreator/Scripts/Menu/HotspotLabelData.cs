@@ -106,8 +106,14 @@ namespace AC
 		}
 
 
-		public void SetData (string label)
+		public void SetData (string label, bool setLabelOnly = false)
 		{
+			if (setLabelOnly)
+			{
+				HotspotLabel = label;
+				return;
+			}
+			
 			backupHotspot = Hotspot;
 			HotspotLabel = label;
 			InvInstance = null;

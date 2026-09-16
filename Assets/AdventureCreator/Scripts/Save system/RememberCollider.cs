@@ -33,6 +33,8 @@ namespace AC
 
 		protected override void OnInitialiseScene ()
 		{
+			PreventStartStateIfPersistent();
+			
 			bool isOn = startState == AC_OnOff.On;
 
 			if (GetComponent <Collider>())

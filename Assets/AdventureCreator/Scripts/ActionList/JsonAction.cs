@@ -99,7 +99,11 @@ namespace AC
 		{
 			foreach (ActionObjectReference objectReference in objectReferences)
 			{
+#if UNITY_6000_5_OR_NEWER
+				string _old = instanceChecker + objectReference.EntityID + "}";
+#else
 				string _old = instanceChecker + objectReference.InstanceID + "}";
+#endif
 				string _new = instanceChecker + objectReference.PersistentID + "}";
 
 				if (jsonData.Contains (_old))
@@ -115,7 +119,11 @@ namespace AC
 			foreach (ActionObjectReference objectReference in objectReferences)
 			{
 				string _old = instanceChecker + objectReference.PersistentID + "}";
+#if UNITY_6000_5_OR_NEWER
+				string _new = instanceChecker + objectReference.EntityID + "}";
+#else
 				string _new = instanceChecker + objectReference.InstanceID + "}";
+#endif
 
 				if (!string.IsNullOrEmpty (jsonData) && jsonData.Contains (_old))
 				{
@@ -470,7 +478,11 @@ namespace AC
 
 			private string targetObjectID;
 			private string targetPrefabID;
+#if UNITY_6000_5_OR_NEWER
+			public EntityId EntityID { get; private set; }
+#else
 			public string InstanceID { get; private set; }
+#endif
 
 
 			public ActionObjectReference (Object _object)
@@ -478,7 +490,11 @@ namespace AC
 				GlobalObjectId globalObjectId = GlobalObjectId.GetGlobalObjectIdSlow (_object);
 				targetObjectID = globalObjectId.targetObjectId.ToString ();
 				targetPrefabID = globalObjectId.targetPrefabId.ToString ();
-				InstanceID = _object.GetInstanceID ().ToString ();
+#if UNITY_6000_5_OR_NEWER
+				EntityID = _object.GetEntityId();
+#else
+				InstanceID = UnityVersionHandler.GetInstanceID(_object).ToString ();
+#endif
 			}
 
 

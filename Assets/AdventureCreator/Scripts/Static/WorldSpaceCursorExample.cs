@@ -48,26 +48,35 @@ namespace AC
 
 		private void Start ()
 		{
-			/*
-			 * First, we'll assign the 'ownCollider' variable, and set the PlayerInput script's InputMousePositionDelegate to our own function.
-			 * This will cause AC to rely on CustomMousePosition for the cursor's position in Screen-space.
-			 */
-
 			ownCollider = GetComponent <Collider>();
+		}
 
+
+		private void OnEnable()
+		{
 			if (!useACCursor)
 			{
-				KickStarter.playerInput.InputMousePositionDelegate = CustomMousePosition;
+				/*
+				* Here, we register our own function for getting the mouse position with AC's PlayerInput script.
+				* This will cause AC to rely on CustomMousePosition for the cursor's position in Screen-space.
+				*/
+				PlayerInput.InputMousePositionDelegates.Add (CustomMousePosition);
 			}
 		}
 
 
-		private void Update ()
+		private void OnDisable()
+		{
+			PlayerInput.InputMousePositionDelegates.Remove (CustomMousePosition);
+		}
+
+
+		private void Update()
 		{
 			if (useACCursor)
 			{
-				Vector2 newPosition = CustomMousePosition (KickStarter.playerInput.IsCursorLocked ());
-				KickStarter.playerInput.SetSimulatedCursorPosition (newPosition);
+				Vector2 newPosition = CustomMousePosition(KickStarter.playerInput.IsCursorLocked());
+				KickStarter.playerInput.SetSimulatedCursorPosition(newPosition);
 			}
 		}
 		

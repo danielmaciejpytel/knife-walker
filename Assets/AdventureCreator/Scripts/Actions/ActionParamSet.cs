@@ -36,6 +36,7 @@ namespace AC
 		public int intValue, intValueMax;
 		public float floatValue, floatValueMax;
 		public string stringValue;
+		public string runtimeFormula;
 
 		public GameObject gameobjectValue;
 		protected GameObject runtimeGameobjectValue;
@@ -56,6 +57,7 @@ namespace AC
 		protected Variables runtimeVariables;
 		protected ActionParameter _parameter;
 		protected ActionParameter _parameterToCopy;
+		protected LocalVariables localVariables;
 
 		public Animator animator;
 		public int animatorConstantID;
@@ -73,32 +75,32 @@ namespace AC
 		public override string Description { get { return "Sets the value of a parameter in an ActionList."; }}
 
 
-		public override void AssignValues (List<ActionParameter> parameters)
-		{	
+		public override void AssignValues(List<ActionParameter> parameters)
+		{
 			if (!changeOwn)
 			{
 				if (actionListSource == ActionListSource.InScene)
 				{
-					actionList = AssignFile <ActionList> (actionListConstantID, actionList);
+					actionList = AssignFile<ActionList>(actionListConstantID, actionList);
 					if (actionList != null)
 					{
 						if (actionList.source == ActionListSource.AssetFile && actionList.assetFile != null)
 						{
 							if (actionList.syncParamValues && actionList.assetFile.useParameters)
 							{
-								_parameter = GetParameterWithID (actionList.assetFile.GetParameters (), parameterID);
-								_parameterToCopy = GetParameterWithID (actionList.assetFile.GetParameters (), parameterToCopyID);
+								_parameter = GetParameterWithID(actionList.assetFile.GetParameters(), parameterID);
+								_parameterToCopy = GetParameterWithID(actionList.assetFile.GetParameters(), parameterToCopyID);
 							}
 							else
 							{
-								_parameter = GetParameterWithID (actionList.parameters, parameterID);
-								_parameterToCopy = GetParameterWithID (actionList.parameters, parameterToCopyID);
+								_parameter = GetParameterWithID(actionList.parameters, parameterID);
+								_parameterToCopy = GetParameterWithID(actionList.parameters, parameterToCopyID);
 							}
 						}
 						else if (actionList.source == ActionListSource.InScene && actionList.useParameters)
 						{
-							_parameter = GetParameterWithID (actionList.parameters, parameterID);
-							_parameterToCopy = GetParameterWithID (actionList.parameters, parameterToCopyID);
+							_parameter = GetParameterWithID(actionList.parameters, parameterID);
+							_parameterToCopy = GetParameterWithID(actionList.parameters, parameterToCopyID);
 						}
 					}
 				}
@@ -106,18 +108,18 @@ namespace AC
 				{
 					if (actionListAsset != null)
 					{
-						_parameter = GetParameterWithID (actionListAsset.GetParameters (), parameterID);
-						_parameterToCopy = GetParameterWithID (actionListAsset.GetParameters (), parameterToCopyID);
+						_parameter = GetParameterWithID(actionListAsset.GetParameters(), parameterID);
+						_parameterToCopy = GetParameterWithID(actionListAsset.GetParameters(), parameterToCopyID);
 
 						if (_parameter.parameterType == ParameterType.GameObject && !isAssetFile && gameobjectValue != null && gameObjectConstantID == 0)
 						{
-							if (gameobjectValue.GetComponent <ConstantID>())
+							if (gameobjectValue.GetComponent<ConstantID>())
 							{
-								gameObjectConstantID = gameobjectValue.GetComponent <ConstantID>().constantID;
+								gameObjectConstantID = gameobjectValue.GetComponent<ConstantID>().constantID;
 							}
 							else
 							{
-								ACDebug.LogWarning ("The GameObject '" + gameobjectValue.name + "' must have a Constant ID component in order to be passed as a parameter to an asset file.", gameobjectValue);
+								ACDebug.LogWarning("The GameObject '" + gameobjectValue.name + "' must have a Constant ID component in order to be passed as a parameter to an asset file.", gameobjectValue);
 							}
 						}
 					}
@@ -125,50 +127,50 @@ namespace AC
 			}
 			else
 			{
-				_parameter = GetParameterWithID (parameters, parameterID);
-				_parameterToCopy = GetParameterWithID (parameters, parameterToCopyID);
+				_parameter = GetParameterWithID(parameters, parameterID);
+				_parameterToCopy = GetParameterWithID(parameters, parameterToCopyID);
 
 				if (_parameter.parameterType == ParameterType.GameObject && isAssetFile && gameobjectValue != null && gameObjectConstantID == 0)
 				{
-					if (gameobjectValue.GetComponent <ConstantID>())
+					if (gameobjectValue.GetComponent<ConstantID>())
 					{
-						gameObjectConstantID = gameobjectValue.GetComponent <ConstantID>().constantID;
+						gameObjectConstantID = gameobjectValue.GetComponent<ConstantID>().constantID;
 					}
 					else
 					{
-						ACDebug.LogWarning ("The GameObject '" + gameobjectValue.name + "' must have a Constant ID component in order to be passed as a parameter to an asset file.", gameobjectValue);
+						ACDebug.LogWarning("The GameObject '" + gameobjectValue.name + "' must have a Constant ID component in order to be passed as a parameter to an asset file.", gameobjectValue);
 					}
 				}
 			}
 
-			runtimeGameobjectValue = AssignFile (gameObjectConstantID, gameobjectValue);
+			runtimeGameobjectValue = AssignFile(gameObjectConstantID, gameobjectValue);
 
 			if (setParamMethod == SetParamMethod.EnteredHere && _parameter != null)
 			{
 				switch (_parameter.parameterType)
 				{
 					case ParameterType.Boolean:
-						BoolValue boolValue = (intValue == 1) ? BoolValue.True : BoolValue.False; 
-						boolValue = AssignBoolean (parameters, ownParamID, boolValue);
+						BoolValue boolValue = (intValue == 1) ? BoolValue.True : BoolValue.False;
+						boolValue = AssignBoolean(parameters, ownParamID, boolValue);
 						intValue = (boolValue == BoolValue.True) ? 1 : 0;
 						break;
 
 					case ParameterType.Float:
-						floatValue = AssignFloat (parameters, ownParamID, floatValue);
+						floatValue = AssignFloat(parameters, ownParamID, floatValue);
 						break;
 
 					case ParameterType.GameObject:
-						runtimeGameobjectValue = AssignFile (parameters, ownParamID, gameObjectConstantID, gameobjectValue);
+						runtimeGameobjectValue = AssignFile(parameters, ownParamID, gameObjectConstantID, gameobjectValue);
 						break;
 
 					case ParameterType.GlobalVariable:
 					case ParameterType.LocalVariable:
-						intValue = AssignVariableID (parameters, ownParamID, intValue);
+						intValue = AssignVariableID(parameters, ownParamID, intValue);
 						break;
 
 					case ParameterType.ComponentVariable:
-						runtimeVariables = AssignFile <Variables>  (gameObjectConstantID, variables);
-						ActionParameter _param = GetParameterWithID (parameters, ownParamID);
+						runtimeVariables = AssignFile<Variables>(gameObjectConstantID, variables);
+						ActionParameter _param = GetParameterWithID(parameters, ownParamID);
 						if (_param != null && _param.parameterType == ParameterType.ComponentVariable)
 						{
 							runtimeVariables = _param.variables;
@@ -178,87 +180,106 @@ namespace AC
 
 					case ParameterType.Integer:
 					case ParameterType.PopUp:
-						intValue = AssignInteger (parameters, ownParamID, intValue);
+						intValue = AssignInteger(parameters, ownParamID, intValue);
 						break;
 
 					case ParameterType.InventoryItem:
-						intValue = AssignInvItemID (parameters, ownParamID, intValue);
+						intValue = AssignInvItemID(parameters, ownParamID, intValue);
 						break;
 
 					case ParameterType.Document:
-						intValue = AssignDocumentID (parameters, ownParamID, intValue);
+						intValue = AssignDocumentID(parameters, ownParamID, intValue);
 						break;
 
 					case ParameterType.Objective:
-						intValue = AssignObjectiveID (parameters, ownParamID, intValue);
+						intValue = AssignObjectiveID(parameters, ownParamID, intValue);
 						break;
 
 					case ParameterType.String:
-						stringValue = AssignString (parameters, ownParamID, stringValue);
+						stringValue = AssignString(parameters, ownParamID, stringValue);
 						break;
 
 					case ParameterType.UnityObject:
-						unityObjectValue = AssignObject <Object> (parameters, ownParamID, unityObjectValue);
+						unityObjectValue = AssignObject<Object>(parameters, ownParamID, unityObjectValue);
 						break;
 
 					case ParameterType.Vector3:
-						vector3Value = AssignVector3 (parameters, ownParamID, vector3Value);
+						vector3Value = AssignVector3(parameters, ownParamID, vector3Value);
 						break;
 				}
 			}
 			else if (setParamMethod == SetParamMethod.CopiedFromGlobalVariable)
 			{
-				ActionParameter parameter = GetParameterWithID (parameters, globalVariableParameterID);
+				ActionParameter parameter = GetParameterWithID(parameters, globalVariableParameterID);
 				if (parameter != null && parameter.parameterType == ParameterType.GlobalVariable)
 				{
-					runtimeVariable = parameter.GetVariable ();
+					runtimeVariable = parameter.GetVariable();
 				}
 				else
 				{
-					runtimeVariable = GlobalVariables.GetVariable (globalVariableID);
+					runtimeVariable = GlobalVariables.GetVariable(globalVariableID, true);
 				}
 			}
 			else if (setParamMethod == SetParamMethod.CopiedFromLocalVariable)
 			{
-				ActionParameter parameter = GetParameterWithID (parameters, globalVariableParameterID);
+				ActionParameter parameter = GetParameterWithID(parameters, globalVariableParameterID);
 				if (parameter != null && parameter.parameterType == ParameterType.LocalVariable)
 				{
-					runtimeVariable = parameter.GetVariable ();
+					runtimeVariable = parameter.GetVariable();
 				}
 				else
 				{
-					runtimeVariable = LocalVariables.GetVariable (globalVariableID);
+					runtimeVariable = LocalVariables.GetVariable(globalVariableID, localVariables);
 				}
 			}
 			else if (setParamMethod == SetParamMethod.CopiedFromAnimator)
 			{
-				runtimeAnimator = AssignFile <Animator> (parameters, animatorParameterID, animatorConstantID, animator);
+				runtimeAnimator = AssignFile<Animator>(parameters, animatorParameterID, animatorConstantID, animator);
 			}
 			else if (setParamMethod == SetParamMethod.CopiedFromComponentVariable)
 			{
-				ActionParameter parameter = GetParameterWithID (parameters, globalVariableParameterID);
+				ActionParameter parameter = GetParameterWithID(parameters, globalVariableParameterID);
 				if (parameter != null && parameter.parameterType == ParameterType.ComponentVariable)
 				{
-					runtimeVariable = parameter.GetVariable ();
+					runtimeVariable = parameter.GetVariable();
 				}
 				else
 				{
-					runtimeVariables = AssignFile<Variables> (gameObjectConstantID, variables);
+					runtimeVariables = AssignFile<Variables>(gameObjectConstantID, variables);
 					if (runtimeVariables)
 					{
-						globalVariableID = AssignVariableID (parameters, globalVariableParameterID, globalVariableID);
-						runtimeVariable = runtimeVariables.GetVariable (globalVariableID);
+						globalVariableID = AssignVariableID(parameters, globalVariableParameterID, globalVariableID);
+						runtimeVariable = runtimeVariables.GetVariable(globalVariableID);
 					}
 				}
 			}
+			else if (setParamMethod == SetParamMethod.Formula)
+			{
+				runtimeFormula = AdvGame.ConvertTokens(stringValue, Options.GetLanguage(), localVariables, parameters);
+			}
+		}
+		
+
+		public override void AssignParentList (ActionList actionList)
+		{
+			if (actionList != null)
+			{
+				localVariables = UnityVersionHandler.GetLocalVariablesOfGameObject (actionList.gameObject);
+			}
+			if (localVariables == null)
+			{
+				localVariables = KickStarter.localVariables;
+			}
+
+			base.AssignParentList (actionList);
 		}
 
 
-		public override float Run ()
+		public override float Run()
 		{
 			if (_parameter == null)
 			{
-				LogWarning ("Cannot set parameter value since it cannot be found!");
+				LogWarning("Cannot set parameter value since it cannot be found!");
 				return 0f;
 			}
 
@@ -266,7 +287,7 @@ namespace AC
 				setParamMethod == SetParamMethod.CopiedFromLocalVariable ||
 				setParamMethod == SetParamMethod.CopiedFromComponentVariable)
 			{
-				SetValueFromVariable (runtimeVariable);
+				SetValueFromVariable(runtimeVariable);
 			}
 			else if (setParamMethod == SetParamMethod.EnteredHere)
 			{
@@ -305,7 +326,7 @@ namespace AC
 						break;
 
 					case ParameterType.ComponentVariable:
-						_parameter.SetValue (runtimeVariables, intValue);
+						_parameter.SetValue(runtimeVariables, intValue);
 						break;
 
 					default:
@@ -317,29 +338,29 @@ namespace AC
 				switch (_parameter.parameterType)
 				{
 					case ParameterType.Boolean:
-						_parameter.intValue = Random.Range (0, 2);
+						_parameter.intValue = Random.Range(0, 2);
 						break;
 
 					case ParameterType.Integer:
-						_parameter.intValue = Random.Range (intValue, intValueMax + 1);
+						_parameter.intValue = Random.Range(intValue, intValueMax + 1);
 						break;
 
 					case ParameterType.PopUp:
 						{
-							PopUpLabelData popUpLabelData = KickStarter.variablesManager.GetPopUpLabelData (_parameter.popUpID);
+							PopUpLabelData popUpLabelData = KickStarter.variablesManager.GetPopUpLabelData(_parameter.popUpID);
 							if (popUpLabelData != null)
 							{
-								_parameter.intValue = Random.Range (0, popUpLabelData.Length);
+								_parameter.intValue = Random.Range(0, popUpLabelData.Length);
 							}
 						}
 						break;
 
 					case ParameterType.Float:
-						_parameter.floatValue = Random.Range (floatValue, floatValueMax);
+						_parameter.floatValue = Random.Range(floatValue, floatValueMax);
 						break;
 
 					default:
-						LogWarning ("Parameters of type '" + _parameter.parameterType + "' cannot be set randomly.");
+						LogWarning("Parameters of type '" + _parameter.parameterType + "' cannot be set randomly.");
 						break;
 				}
 			}
@@ -347,44 +368,64 @@ namespace AC
 			{
 				if (_parameterToCopy == null)
 				{
-					LogWarning ("Cannot copy parameter value since it cannot be found!");
+					LogWarning("Cannot copy parameter value since it cannot be found!");
 					return 0f;
 				}
 
-				_parameter.CopyValues (_parameterToCopy);
+				_parameter.CopyValues(_parameterToCopy);
 			}
 			else if (setParamMethod == SetParamMethod.CopiedFromAnimator)
 			{
 				if (runtimeAnimator == null)
 				{
-					LogWarning ("Cannot set the value of parameter " + _parameter.label + ", because no Animator was found.");
+					LogWarning("Cannot set the value of parameter " + _parameter.label + ", because no Animator was found.");
 					return 0f;
 				}
 
-				if (string.IsNullOrEmpty (animatorParameterName))
+				if (string.IsNullOrEmpty(animatorParameterName))
 				{
-					LogWarning ("Cannot set a parameter value from Animator because no Animator parameter was named.");
+					LogWarning("Cannot set a parameter value from Animator because no Animator parameter was named.");
 					return 0f;
 				}
 
 				switch (_parameter.parameterType)
 				{
 					case ParameterType.Boolean:
-						bool val = runtimeAnimator.GetBool (animatorParameterName);
-						_parameter.SetValue ((val) ? 1 : 0);
+						bool val = runtimeAnimator.GetBool(animatorParameterName);
+						_parameter.SetValue((val) ? 1 : 0);
 						break;
 
 					case ParameterType.Integer:
 					case ParameterType.PopUp:
-						_parameter.SetValue (runtimeAnimator.GetInteger (animatorParameterName));
+						_parameter.SetValue(runtimeAnimator.GetInteger(animatorParameterName));
 						break;
 
 					case ParameterType.Float:
-						_parameter.SetValue (runtimeAnimator.GetFloat (animatorParameterName));
+						_parameter.SetValue(runtimeAnimator.GetFloat(animatorParameterName));
 						break;
 
 					default:
-						LogWarning ("Parameters of type '" + _parameter.parameterType + "' cannot be set from an Animator.");
+						LogWarning("Parameters of type '" + _parameter.parameterType + "' cannot be set from an Animator.");
+						break;
+				}
+			}
+			else if (setParamMethod == SetParamMethod.Formula)
+			{
+				switch (_parameter.parameterType)
+				{
+					case ParameterType.Float:
+						floatValue = (float) AdvGame.CalculateFormula (runtimeFormula);
+						_parameter.SetValue(floatValue);
+						break;
+
+					case ParameterType.Integer:
+					case ParameterType.PopUp:
+						intValue = (int) AdvGame.CalculateFormula (runtimeFormula);
+						_parameter.SetValue(intValue);
+						break;
+
+					default:
+						LogWarning("Parameters of type " + _parameter.parameterType + " cannot be set via formula");
 						break;
 				}
 			}
@@ -992,6 +1033,21 @@ namespace AC
 
 					default:
 						EditorGUILayout.HelpBox ("Parameters of type '" + _parameter.parameterType + "' cannot have values transferred from Animators.", MessageType.Warning);
+						break;
+				}
+			}
+			else if (setParamMethod == SetParamMethod.Formula)
+			{
+				switch (_parameter.parameterType)
+				{
+					case ParameterType.Integer:
+					case ParameterType.Float:
+					case ParameterType.PopUp:
+						stringValue = EditorGUILayout.TextField ("Formula:", stringValue);
+						break;
+					
+					default:
+						EditorGUILayout.HelpBox ("Only Integer, Float and PopUp parameters can be set via formula", MessageType.Warning);
 						break;
 				}
 			}

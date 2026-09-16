@@ -1,7 +1,7 @@
 /*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2026
  *	
  *	"PlayerMenus.cs"
  * 
@@ -76,9 +76,12 @@ namespace AC
 		protected int elementOverCursorID = -1;
 
 		protected GUIStyle normalStyle = new GUIStyle ();
+		public GUIStyle NormalStyle => normalStyle;
 		protected GUIStyle highlightedStyle = new GUIStyle();
 		protected Rect lastSafeRect;
 		protected float lastAspectRatio;
+
+		private string savedJournalData = "";
 		
 		#if (UNITY_IPHONE || UNITY_ANDROID) && !UNITY_EDITOR
 		protected TouchScreenKeyboard keyboard;
@@ -109,6 +112,8 @@ namespace AC
 			EventManager.OnMouseOverMenu += OnMouseOverMenu;
 			EventManager.OnChangeLanguage += OnChangeLanguage;
 			EventManager.OnDocumentOpen += OnDocumentOpen;
+			EventManager.OnBeforeSaving += OnBeforeSaving;
+			EventManager.OnBeforeChangeScene += OnBeforeChangeScene;
 		}
 
 
@@ -120,6 +125,14 @@ namespace AC
 			EventManager.OnMouseOverMenu -= OnMouseOverMenu;
 			EventManager.OnChangeLanguage -= OnChangeLanguage;
 			EventManager.OnDocumentOpen -= OnDocumentOpen;
+			EventManager.OnBeforeSaving -= OnBeforeSaving;
+			EventManager.OnBeforeChangeScene -= OnBeforeChangeScene;
+		}
+
+
+		private void OnApplicationFocus (bool focus)
+		{
+			if (focus) RecalculateAll ();
 		}
 
 
@@ -146,6 +159,8 @@ namespace AC
 			}
 
 			menus = new List<Menu>();
+			
+			CreateEventSystem ();
 			
 			if (menuManager)
 			{
@@ -180,7 +195,6 @@ namespace AC
 				}
 			}
 			
-			CreateEventSystem ();
 			OnChangeLanguage (Options.GetLanguage ());
 			
 			foreach (AC.Menu menu in menus)
@@ -197,6 +211,30 @@ namespace AC
 			CycleMouseOverUIs ();
 			#endif
 		}
+
+
+		private void OnBeforeSaving (int saveID)
+		{
+			savedJournalData = CreateMenuJournalData ();
+		}
+
+
+		private void OnBeforeChangeScene (string nextSceneName)
+		{
+			foreach (var menu in dupHotspotMenus)
+			{
+				menu.ForceOff ();
+			}
+			dupHotspotMenus.Clear ();
+
+			foreach (var menu in dupSpeechMenus)
+			{
+				menu.ForceOff ();
+			}
+			dupSpeechMenus.Clear ();
+
+			hotspotLabelData.ClearString ();
+		}	
 
 
 		private IEnumerator RecalcWebMenus ()
@@ -261,12 +299,21 @@ namespace AC
 
 				if (KickStarter.menuManager)
 				{
+					bool haveUIMenus = false;
+					foreach (AC.Menu menu in KickStarter.menuManager.menus)
+					{
+						if (menu.menuSource == MenuSource.UnityUiInScene || menu.menuSource == MenuSource.UnityUiPrefab)
+						{
+							haveUIMenus = true;
+						}
+					}
+
 					if (KickStarter.menuManager.eventSystem)
 					{
 						_eventSystem = (UnityEngine.EventSystems.EventSystem) Instantiate (KickStarter.menuManager.eventSystem);
 						_eventSystem.gameObject.name = KickStarter.menuManager.eventSystem.name;
 					}
-					else if (AreAnyMenusUI () || force)
+					else if (haveUIMenus || force)
 					{
 						GameObject eventSystemObject = new GameObject ();
 						eventSystemObject.name = "EventSystem";
@@ -1031,7 +1078,7 @@ namespace AC
 					menu.HotspotLabelData.Copy (hotspotLabelData);
 				}
 			}
-			else
+			else if (!customMenus.Contains (menu))
 			{
 				menu.HotspotLabelData.Copy (hotspotLabelData);
 			}
@@ -1041,13 +1088,16 @@ namespace AC
 			switch (menu.appearType)
 			{
 				case AppearType.Manual:
+				{
 					if (menu.IsVisible () && !menu.isLocked && menu.IsPointInside (invertedMouse) && !menu.ignoreMouseClicks && !KickStarter.playerInput.IsCursorLocked ())
 					{
 						foundMouseOverMenu = true;
 					}
 					break;
+				}
 
 				case AppearType.OnViewDocument:
+				{
 					if (KickStarter.runtimeDocuments.ActiveDocument != null && !menu.isLocked && (!KickStarter.stateHandler.IsPaused () || menu.IsBlocking ()))
 					{
 						if (menu.IsVisible () && menu.IsPointInside (invertedMouse) && !menu.ignoreMouseClicks && !KickStarter.playerInput.IsCursorLocked ())
@@ -1061,8 +1111,10 @@ namespace AC
 						menu.TurnOff (true);
 					}
 					break;
+				}
 
 				case AppearType.DuringGameplay:
+				{
 					if (KickStarter.stateHandler.IsInGameplay () && !menu.isLocked)
 					{
 						if (menu.IsOff ())
@@ -1084,8 +1136,10 @@ namespace AC
 						menu.TurnOff (true);
 					}
 					break;
+				}
 
 				case AppearType.DuringGameplayAndConversations:
+				{
 					if (!menu.isLocked && (KickStarter.stateHandler.gameState == GameState.Normal || KickStarter.stateHandler.gameState == GameState.DialogOptions))
 					{
 						if (menu.IsOff ())
@@ -1107,8 +1161,35 @@ namespace AC
 						menu.TurnOff (true);
 					}
 					break;
+				}
+
+				case AppearType.DuringCutscenesAndConversations:
+				{
+					if (!menu.isLocked && (KickStarter.stateHandler.gameState == GameState.Cutscene || KickStarter.stateHandler.gameState == GameState.DialogOptions) && !KickStarter.mainCamera.IsShowingForcedOverlay ())
+					{
+						if (menu.IsOff ())
+						{
+							menu.TurnOn (true);
+						}
+
+						if (menu.IsOn () && menu.IsPointInside (invertedMouse) && !menu.ignoreMouseClicks && !KickStarter.playerInput.IsCursorLocked ())
+						{
+							foundMouseOverMenu = true;
+						}
+					}
+					else if (KickStarter.stateHandler.gameState == GameState.Paused)
+					{
+						menu.TurnOff (true);
+					}
+					else if (menu.IsOn () && !KickStarter.actionListManager.IsGameplayBlocked ())
+					{
+						menu.TurnOff (true);
+					}
+					break;
+				}
 
 				case AppearType.ExceptWhenPaused:
+				{
 					if (KickStarter.stateHandler.gameState != GameState.Paused && !menu.isLocked)
 					{
 						if (menu.IsOff ())
@@ -1126,13 +1207,15 @@ namespace AC
 						menu.TurnOff (true);
 					}
 					break;
+				}
 
 				case AppearType.DuringCutscene:
-					if (KickStarter.stateHandler.gameState == GameState.Cutscene && !menu.isLocked)
+				{
+					if (KickStarter.stateHandler.gameState == GameState.Cutscene && !KickStarter.mainCamera.IsShowingForcedOverlay () && !menu.isLocked)
 					{
 						if (menu.IsOff ())
 						{
-							menu.TurnOn (true);
+							menu.TurnOn(true);
 						}
 						
 						if (menu.IsOn () && menu.IsPointInside (invertedMouse) && !KickStarter.playerInput.IsCursorLocked ())
@@ -1149,8 +1232,10 @@ namespace AC
 						menu.TurnOff (true);
 					}
 					break;
+				}
 
 				case AppearType.MouseOver:
+				{
 					if (menu.pauseWhenEnabled)
 					{
 						if ((KickStarter.stateHandler.gameState == GameState.Paused || KickStarter.stateHandler.IsInGameplay ())
@@ -1195,8 +1280,10 @@ namespace AC
 						}
 					}
 					break;
+				}
 
 				case AppearType.OnContainer:
+				{
 					if (KickStarter.playerInput.activeContainer && !menu.isLocked && (KickStarter.stateHandler.IsInGameplay () || (KickStarter.stateHandler.gameState == AC.GameState.Paused && menu.IsBlocking ())))
 					{
 						if (menu.IsVisible () && !KickStarter.playerInput.IsCursorLocked () && menu.IsPointInside (invertedMouse) && !menu.ignoreMouseClicks)
@@ -1210,8 +1297,10 @@ namespace AC
 						menu.TurnOff (true);
 					}
 					break;
+				}
 
 				case AppearType.DuringConversation:
+				{
 					if (menu.IsEnabled () && !menu.isLocked && !KickStarter.playerInput.IsCursorLocked () && menu.IsPointInside (invertedMouse) && !menu.ignoreMouseClicks)
 					{
 						foundMouseOverMenu = true;
@@ -1230,8 +1319,10 @@ namespace AC
 						menu.TurnOff (true);
 					}
 					break;
+				}
 
 				case AppearType.OnInputKey:
+				{
 					if (menu.IsEnabled () && !menu.isLocked && !KickStarter.playerInput.IsCursorLocked () && menu.IsPointInside (invertedMouse) && !menu.ignoreMouseClicks)
 					{
 						foundMouseOverMenu = true;
@@ -1266,8 +1357,10 @@ namespace AC
 						}
 					}
 					break;
+				}
 
 				case AppearType.OnHotspot:
+				{
 					if (KickStarter.settingsManager.interactionMethod == AC_InteractionMethod.ContextSensitive && !menu.isLocked && !InvInstance.IsValid (KickStarter.runtimeInventory.SelectedInstance))
 					{
 						Hotspot hotspot = menu.HotspotLabelData.Hotspot;
@@ -1303,8 +1396,10 @@ namespace AC
 						menu.TurnOff ();
 					}
 					break;
+				}
 
 				case AppearType.OnInteraction:
+				{
 					if (KickStarter.player != null && KickStarter.settingsManager.hotspotDetection == HotspotDetection.PlayerVicinity && KickStarter.player.hotspotDetector && KickStarter.settingsManager.closeInteractionMenusIfPlayerLeavesVicinity)
 					{
 						if (menu.TargetHotspot && !KickStarter.player.hotspotDetector.IsHotspotInTrigger (menu.TargetHotspot))
@@ -1350,8 +1445,12 @@ namespace AC
 							{
 								foundMouseOverInteractionMenu = true;
 							}
-							else if (!menu.IsPointInside (invertedMouse) && !menu.ignoreMouseClicks && !KickStarter.playerInput.IsCursorLocked () && KickStarter.playerInteraction.GetActiveHotspot () == null && !InvInstance.IsValid (KickStarter.runtimeInventory.HoverInstance) &&
-								(KickStarter.settingsManager.interactionMethod != AC_InteractionMethod.ChooseHotspotThenInteraction || KickStarter.settingsManager.cancelInteractions == CancelInteractions.CursorLeavesMenuOrHotspot))
+							else if (!menu.IsPointInside (invertedMouse) && 
+								!menu.ignoreMouseClicks &&
+								//!KickStarter.playerInput.IsCursorLocked () &&
+								KickStarter.playerInteraction.GetActiveHotspot () == null && 
+								!InvInstance.IsValid (KickStarter.runtimeInventory.HoverInstance) &&
+								((KickStarter.settingsManager.interactionMethod != AC_InteractionMethod.ChooseHotspotThenInteraction && !KickStarter.playerInput.IsCursorLocked ()) || (KickStarter.settingsManager.interactionMethod == AC_InteractionMethod.ChooseHotspotThenInteraction && KickStarter.settingsManager.cancelInteractions == CancelInteractions.CursorLeavesMenuOrHotspot)))
 							{
 								menu.TurnOff (true);
 							}
@@ -1399,8 +1498,10 @@ namespace AC
 						}
 					}
 					break;
+				}
 
 				case AppearType.WhenSpeechPlays:
+				{
 					if (KickStarter.stateHandler.gameState == GameState.Paused)
 					{
 						if (!menu.showWhenPaused)
@@ -1423,6 +1524,11 @@ namespace AC
 								(KickStarter.speechManager.forceSubtitles && !KickStarter.dialog.FoundAudio ())) 
 							{
 								menu.TurnOn (true);
+
+								if (menu.IsVisible () && !menu.isLocked && menu.IsPointInside (invertedMouse) && !menu.ignoreMouseClicks && !KickStarter.playerInput.IsCursorLocked ())
+								{
+									foundMouseOverMenu = true;
+								}
 							}
 							else
 							{
@@ -1435,8 +1541,10 @@ namespace AC
 						}
 					}
 					break;
+				}
 
 				case AppearType.WhileLoading:
+				{
 					if (KickStarter.sceneChanger.IsLoading () || KickStarter.settingsManager.IsInLoadingScene ())
 					{
 						menu.TurnOn (true);
@@ -1446,8 +1554,10 @@ namespace AC
 						menu.TurnOff (true);
 					}
 					break;
+				}
 
 				case AppearType.WhileInventorySelected:
+				{
 					if (InvInstance.IsValid (KickStarter.runtimeInventory.SelectedInstance))
 					{
 						menu.TurnOn (true);
@@ -1457,6 +1567,7 @@ namespace AC
 						menu.TurnOff (true);
 					}
 					break;
+				}
 			}
 
 			if (updateElements)
@@ -1639,14 +1750,23 @@ namespace AC
 					if (slotIsActive)
 					{
 						string _hotspotLabelOverride = KickStarter.eventManager.Call_OnRequestMenuElementHotspotLabel (menu, menu.elements[j], i, languageNumber);
-						if (string.IsNullOrEmpty (_hotspotLabelOverride))
+						if (_hotspotLabelOverride == null)
+						{
+							_hotspotLabelOverride = string.Empty;
+						}
+						else if (string.IsNullOrEmpty (_hotspotLabelOverride))
 						{
 							_hotspotLabelOverride = menu.elements[j].GetHotspotLabelOverride (i, languageNumber);
 						}
 
 						if (!string.IsNullOrEmpty (_hotspotLabelOverride))
 						{
-							if (menuInventoryBox)
+							if ((menu.IsUnityUI () && menu.uiPositionType == UIPositionType.OnHotspot) || (!menu.IsUnityUI () && menu.positionType == AC_PositionType.OnHotspot))
+							{
+								// Needed to prevent repositioning self
+								hotspotLabelData.SetData(_hotspotLabelOverride, true);
+							}
+							else if (menuInventoryBox)
 							{
 								if (menuInventoryBox.inventoryBoxType == AC_InventoryBoxType.HotspotBased)
 								{
@@ -1689,6 +1809,7 @@ namespace AC
 									hotspotLabelData.SetData (menu.elements[j], i, _hotspotLabelOverride);
 								}
 							}
+							menu.HotspotLabelData.Copy (hotspotLabelData);//
 						}
 					}
 				}
@@ -2931,7 +3052,7 @@ namespace AC
 
 		public bool CanCurrentlyRightClick ()
 		{
-			return isOverRightClickElement;
+			return IsMouseOverMenu () && isOverRightClickElement;
 		}
 		
 
@@ -3447,7 +3568,8 @@ namespace AC
 			mainData.menuLockData = CreateMenuLockData ();
 			mainData.menuVisibilityData = CreateMenuVisibilityData ();
 			mainData.menuElementVisibilityData = CreateMenuElementVisibilityData ();
-			mainData.menuJournalData = CreateMenuJournalData ();
+			mainData.menuJournalData = savedJournalData;
+			savedJournalData = string.Empty;
 
 			return mainData;
 		}
@@ -3572,8 +3694,12 @@ namespace AC
 						foreach (JournalPage page in journal.pages)
 						{
 							journalString.Append (page.lineID);
-							//journalString.Append ("*");
-							//journalString.Append (page.text);
+
+							if (page.texture)
+							{
+								journalString.Append ("*");
+								journalString.Append (AssetLoader.GetAssetInstanceID (page.texture));
+							}
 							journalString.Append ("~");
 						}
 						
@@ -3774,32 +3900,44 @@ namespace AC
 										int lineID = -1;
 										string[] chunkData3 = chunkData2.Split ("*"[0]);
 										int.TryParse (chunkData3[0], out lineID);
-
-										if (chunkData3.Length > 1)
+										
+										if (lineID >= 0)
 										{
-											// Backwards-compatibility for old save files
-
-											if (!clearedJournal)
-											{
-												journal.pages = new List<JournalPage>();
-												journal.showPage = 1;
-												clearedJournal = true;
-											}
-											journal.pages.Add (new JournalPage (lineID, chunkData3[1]));
-										}
-										else if (lineID >= 0)
-										{
-											if (!clearedJournal)
-											{
-												journal.pages = new List<JournalPage>();
-												journal.showPage = 1;
-												clearedJournal = true;
-											}
-
 											SpeechLine speechLine = KickStarter.speechManager.GetLine (lineID);
 											if (speechLine != null && speechLine.textType == AC_TextType.JournalEntry)
 											{
-												journal.pages.Add (new JournalPage (lineID, speechLine.text));
+												if (!clearedJournal)
+												{
+													journal.pages = new List<JournalPage>();
+													journal.showPage = 1;
+													clearedJournal = true;
+												}
+
+												Texture2D texture = null;
+												if (chunkData3.Length > 1)
+												{
+													texture = AssetLoader.RetrieveAsset<Texture2D> (null, chunkData3[1], false);
+												}
+												if (texture == null)
+												{
+													var originalElement = MenuManager.GetElementWithName (_menu.title, _element.title);
+													if (originalElement && originalElement is MenuJournal)
+													{
+														MenuJournal originalJournal = originalElement as MenuJournal;
+														if (originalJournal.journalType == JournalType.NewJournal)
+														{
+															foreach (var page in originalJournal.pages)
+															{
+																if (page.lineID == lineID)
+																{
+																	texture  = page.texture;
+																}
+															}
+														}
+													}
+												}
+
+												journal.pages.Add (new JournalPage (lineID, speechLine.text, texture));
 											}
 										}
 									}

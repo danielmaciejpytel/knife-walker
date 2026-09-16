@@ -52,6 +52,8 @@ namespace AC
 		public bool rotationIsClockwise = true;
 		public float targetRotations = 1f;
 		public int targetRotationsParameterID = -1;
+		
+		private bool menuStartsOn;
 
 		
 		public override ActionCategory Category { get { return ActionCategory.Input; }}
@@ -87,6 +89,7 @@ namespace AC
 			if (!isRunning)
 			{
 				isRunning = true;
+				menuStartsOn = false;
 
 				Animator animator = null;
 				if (!string.IsNullOrEmpty (menuName))
@@ -94,6 +97,7 @@ namespace AC
 					AC.Menu menu = PlayerMenus.GetMenuWithName (menuName);
 					if (menu != null)
 					{
+						menuStartsOn = menu.IsOn ();
 						menu.TurnOn (true);
 						if (animateUI && menu.RuntimeCanvas)
 						{
@@ -141,7 +145,7 @@ namespace AC
 				if (!string.IsNullOrEmpty (menuName))
 				{
 					AC.Menu menu = PlayerMenus.GetMenuWithName (menuName);
-					if (menu != null)
+					if (menu != null && menuStartsOn)
 					{
 						menu.TurnOff (true);
 					}
@@ -156,7 +160,7 @@ namespace AC
 		public override void Skip ()
 		{
 			KickStarter.playerQTE.SkipQTE ();
-			if (!string.IsNullOrEmpty (menuName))
+			if (!string.IsNullOrEmpty (menuName) && menuStartsOn)
 			{
 				PlayerMenus.GetMenuWithName (menuName).TurnOff (true);
 			}
@@ -283,15 +287,15 @@ namespace AC
 			{
 				if (qteType == QTEType.SingleKeypress || qteType == QTEType.SingleAxis)
 				{
-					EditorGUILayout.HelpBox ("The Menu's UI must have an Animator with 2 States: Win, Lose.", MessageType.Info);
+					EditorGUILayout.HelpBox ("The Menu's UI must have an Animator with 2 Triggers: Win, Lose.", MessageType.Info);
 				}
 				else if (qteType == QTEType.ButtonMash)
 				{
-					EditorGUILayout.HelpBox ("The Menu's UI must have an Animator with 3 States: Hit, Win, Lose.", MessageType.Info);
+					EditorGUILayout.HelpBox ("The Menu's UI must have an Animator with 3 Triggers: Hit, Win, Lose.", MessageType.Info);
 				}
 				else if (qteType == QTEType.HoldKey)
 				{
-					EditorGUILayout.HelpBox ("The Menu's UI must have an Animator with 2 States: Win, Lose, and 1 Trigger: Held.", MessageType.Info);
+					EditorGUILayout.HelpBox ("The Menu's UI must have an Animator with 2 Triggers: Win, Lose, and 1 Bool: Held.", MessageType.Info);
 				}
 			}
 		}

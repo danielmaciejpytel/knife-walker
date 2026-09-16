@@ -1,7 +1,7 @@
 ﻿/*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2025
  *	
  *	"ActionParamCheck.cs"
  * 
@@ -42,6 +42,9 @@ namespace AC
 		public Variables compareVariables;
 		public Vector3 vector3Value;
 
+		public bool usePopupSwitch;
+		private PopUpLabelData popUpLabelData;
+
 		public GameObject compareObject;
 		public int compareObjectConstantID;
 		protected GameObject runtimeCompareObject;
@@ -66,6 +69,15 @@ namespace AC
 		public override string Title { get { return "Check parameter"; }}
 		public override string Description { get { return "Queries the value of parameters defined in the parent ActionList."; }}
 
+		public override int NumSockets
+		{
+			get
+			{
+				if (usePopupSwitch && popUpLabelData != null) return popUpLabelData.Labels.Length;
+				return base.NumSockets;
+			}
+		}
+
 
 		public override void AssignValues (List<ActionParameter> parameters)
 		{
@@ -84,19 +96,19 @@ namespace AC
 						{
 							if (actionList.syncParamValues && actionList.assetFile.useParameters)
 							{
-								_parameter = GetParameterWithID (actionList.assetFile.GetParameters (), parameterID);
-								_compareParameter = GetParameterWithID (actionList.assetFile.GetParameters (), compareParameterID);
+								_parameter = GetParameterWithID(actionList.assetFile.GetParameters(), parameterID);
+								_compareParameter = GetParameterWithID(actionList.assetFile.GetParameters(), compareParameterID);
 							}
 							else
 							{
-								_parameter = GetParameterWithID (actionList.parameters, parameterID);
-								_compareParameter = GetParameterWithID (actionList.parameters, compareParameterID);
+								_parameter = GetParameterWithID(actionList.parameters, parameterID);
+								_compareParameter = GetParameterWithID(actionList.parameters, compareParameterID);
 							}
 						}
 						else if (actionList.source == ActionListSource.InScene && actionList.useParameters)
 						{
-							_parameter = GetParameterWithID (actionList.parameters, parameterID);
-							_compareParameter = GetParameterWithID (actionList.parameters, compareParameterID);
+							_parameter = GetParameterWithID(actionList.parameters, parameterID);
+							_compareParameter = GetParameterWithID(actionList.parameters, compareParameterID);
 						}
 					}
 				}
@@ -104,20 +116,29 @@ namespace AC
 				{
 					if (actionListAsset != null)
 					{
-						_parameter = GetParameterWithID (actionListAsset.GetParameters (), parameterID);
-						_compareParameter = GetParameterWithID (actionListAsset.GetParameters (), compareParameterID);
+						_parameter = GetParameterWithID(actionListAsset.GetParameters(), parameterID);
+						_compareParameter = GetParameterWithID(actionListAsset.GetParameters(), compareParameterID);
 					}
 				}
 			}
 			else
 			{
-				_parameter = GetParameterWithID (parameters, parameterID);
-				_compareParameter = GetParameterWithID (parameters, compareParameterID);
+				_parameter = GetParameterWithID(parameters, parameterID);
+				_compareParameter = GetParameterWithID(parameters, compareParameterID);
 			}
 
 			if (_compareParameter == _parameter) _compareParameter = null;
 
-			runtimeCompareObject = AssignFile (compareObjectConstantID, compareObject);
+			if (_parameter != null && _parameter.parameterType == ParameterType.PopUp && usePopupSwitch)
+			{
+				popUpLabelData = KickStarter.variablesManager.GetPopUpLabelData(_parameter.popUpID);
+			}
+			else
+			{
+				popUpLabelData = null;
+			}
+
+			runtimeCompareObject = AssignFile(compareObjectConstantID, compareObject);
 		}
 		
 		
@@ -137,39 +158,49 @@ namespace AC
 			{
 				case ParameterType.GlobalVariable:
 					if (compareVariableID == -1) return -1;
-					compareVar = GlobalVariables.GetVariable (compareVariableID, true);
+					compareVar = GlobalVariables.GetVariable(compareVariableID, true);
 					break;
 
 				case ParameterType.LocalVariable:
 					if (compareVariableID == -1) return -1;
 					if (!isAssetFile)
 					{
-						compareVar = LocalVariables.GetVariable (compareVariableID);
+						compareVar = LocalVariables.GetVariable(compareVariableID);
 					}
 					break;
 
 				case ParameterType.ComponentVariable:
 					if (compareVariableID == -1) return -1;
-					runtimeCompareVariables = AssignFile<Variables> (compareObjectConstantID, compareVariables);
+					runtimeCompareVariables = AssignFile<Variables>(compareObjectConstantID, compareVariables);
 					if (runtimeCompareVariables != null)
 					{
-						compareVar = runtimeCompareVariables.GetVariable (compareVariableID);
+						compareVar = runtimeCompareVariables.GetVariable(compareVariableID);
 					}
 					break;
 
 				case ParameterType.InventoryItem:
 					if (compareVariableID == -1) return -1;
-					compareItem = KickStarter.inventoryManager.GetItem (compareVariableID);
+					compareItem = KickStarter.inventoryManager.GetItem(compareVariableID);
 					break;
 
 				case ParameterType.Document:
 					if (compareVariableID == -1) return -1;
-					compareDoc = KickStarter.inventoryManager.GetDocument (compareVariableID);
+					compareDoc = KickStarter.inventoryManager.GetDocument(compareVariableID);
 					break;
 
 				case ParameterType.Objective:
 					if (compareVariableID == -1) return -1;
-					compareObjective = KickStarter.inventoryManager.GetObjective (compareVariableID);
+					compareObjective = KickStarter.inventoryManager.GetObjective(compareVariableID);
+					break;
+					
+				case ParameterType.PopUp:
+					if (popUpLabelData != null && usePopupSwitch)
+					{
+						return _parameter.intValue;
+					}
+					break;
+
+				default:
 					break;
 			}
 
@@ -427,6 +458,8 @@ namespace AC
 		
 		public override void ShowGUI (List<ActionParameter> parameters)
 		{
+			popUpLabelData = null;
+			
 			checkOwn = EditorGUILayout.Toggle ("Check own?", checkOwn);
 			if (checkOwn)
 			{
@@ -508,33 +541,46 @@ namespace AC
 
 			if (parameter.parameterType == ParameterType.Boolean)
 			{
-				boolCondition = (BoolCondition) EditorGUILayout.EnumPopup ("Condition:", boolCondition);
-				EnumBoolField ("Value:", ref boolValue, parameters, ref compareParameterID);
+				boolCondition = (BoolCondition)EditorGUILayout.EnumPopup("Condition:", boolCondition);
+				EnumBoolField("Value:", ref boolValue, parameters, ref compareParameterID);
 			}
 			else if (parameter.parameterType == ParameterType.Integer)
 			{
-				intCondition = (IntCondition) EditorGUILayout.EnumPopup ("Condition:", intCondition);
-				IntField ("Value:", ref intValue, parameters, ref compareParameterID);
+				intCondition = (IntCondition)EditorGUILayout.EnumPopup("Condition:", intCondition);
+				IntField("Value:", ref intValue, parameters, ref compareParameterID);
 			}
 			else if (parameter.parameterType == ParameterType.PopUp)
 			{
-				intCondition = (IntCondition) EditorGUILayout.EnumPopup ("Condition:", intCondition);
-
-				ActionParameter[] filteredParameters = GetFilteredParameters (parameters, parameter.parameterType);
-				bool parameterOverride = SmartFieldStart ("Value:", filteredParameters, ref compareParameterID, "Value:");
-				if (!parameterOverride)
+				popUpLabelData = KickStarter.variablesManager.GetPopUpLabelData(parameter.popUpID);
+				if (popUpLabelData != null)
 				{
-					PopUpLabelData popUpLabelData = KickStarter.variablesManager.GetPopUpLabelData (parameter.popUpID);
-					if (popUpLabelData != null)
-					{
-						intValue = EditorGUILayout.Popup ("Value:", intValue, popUpLabelData.GenerateEditorPopUpLabels ());
-					}
-					else
-					{
-						intValue = EditorGUILayout.IntField ("Value:", intValue);
-					}
+					usePopupSwitch = EditorGUILayout.Toggle("Use Pop Up switch?", usePopupSwitch);
 				}
-				SmartFieldEnd (filteredParameters, parameterOverride, ref compareParameterID);
+				if (!usePopupSwitch)
+				{
+					popUpLabelData = null;
+				}
+
+				if (popUpLabelData == null)
+				{
+					intCondition = (IntCondition)EditorGUILayout.EnumPopup("Condition:", intCondition);
+
+					ActionParameter[] filteredParameters = GetFilteredParameters(parameters, parameter.parameterType);
+					bool parameterOverride = SmartFieldStart("Value:", filteredParameters, ref compareParameterID, "Value:");
+					if (!parameterOverride)
+					{
+						PopUpLabelData popUpLabelData = KickStarter.variablesManager.GetPopUpLabelData(parameter.popUpID);
+						if (popUpLabelData != null)
+						{
+							intValue = EditorGUILayout.Popup("Value:", intValue, popUpLabelData.GenerateEditorPopUpLabels());
+						}
+						else
+						{
+							intValue = EditorGUILayout.IntField("Value:", intValue);
+						}
+					}
+					SmartFieldEnd(filteredParameters, parameterOverride, ref compareParameterID);
+				}
 			}
 			else if (parameter.parameterType == ParameterType.Float)
 			{
@@ -616,9 +662,19 @@ namespace AC
 		}
 
 
-		public override void AssignConstantIDs (bool saveScriptsToo, bool fromAssetFile)
+		protected override string GetSocketLabel(int i)
 		{
-			compareObjectConstantID = AssignConstantID (compareObject, compareObjectConstantID, 0);
+			if (popUpLabelData != null && i < popUpLabelData.Labels.Length)
+			{
+				return "If = '" + popUpLabelData.GetValue(i) + "':";
+			}
+			return base.GetSocketLabel(i);
+		}
+
+
+		public override void AssignConstantIDs(bool saveScriptsToo, bool fromAssetFile)
+		{
+			compareObjectConstantID = AssignConstantID(compareObject, compareObjectConstantID, 0);
 		}
 		
 		

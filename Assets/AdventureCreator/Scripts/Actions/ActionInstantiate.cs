@@ -26,12 +26,12 @@ namespace AC
 {
 
 	[System.Serializable]
-	public class ActionInstantiate : Action
+	public class ActionInstantiate : Action, ITranslatableReferencer
 	{
-		
+
 		public GameObject gameObject;
 		public int parameterID = -1;
-		public int constantID = 0; 
+		public int constantID = 0;
 
 		public GameObject replaceGameObject;
 		public int replaceParameterID = -1;
@@ -61,41 +61,41 @@ namespace AC
 		public int spawnedObjectParameterID = -1;
 		protected ActionParameter runtimeSpawnedObjectParameter;
 
-		#if AddressableIsPresent
+#if AddressableIsPresent
 		public bool referenceByAddressable = false;
 		public string addressableName;
 		public int addressableNameParameterID = -1;
 		protected bool isAwaitingAddressable = false;
-		#endif
+#endif
 
-		#if UNITY_EDITOR
+#if UNITY_EDITOR
 		ParameterType[] parameterTypes;
-		#endif
+#endif
 
-		public override ActionCategory Category { get { return ActionCategory.Object; }}
-		public override string Title { get { return "Add or remove"; }}
-		public override string Description { get { return "Instantiates or deletes GameObjects within the current scene. To ensure this works with save games correctly, place any prefabs to be added in a Resources asset folder."; }}
+		public override ActionCategory Category { get { return ActionCategory.Object; } }
+		public override string Title { get { return "Add or remove"; } }
+		public override string Description { get { return "Instantiates or deletes GameObjects within the current scene. To ensure this works with save games correctly, place any prefabs to be added in a Resources asset folder."; } }
 
 		bool isInBackground;
 
 
-		public override void AssignValues (List<ActionParameter> parameters)
+		public override void AssignValues(List<ActionParameter> parameters)
 		{
 			GameObject invPrefab = null;
-			ActionParameter parameter = GetParameterWithID (parameters, parameterID);
+			ActionParameter parameter = GetParameterWithID(parameters, parameterID);
 			if (parameter != null && parameter.parameterType == ParameterType.InventoryItem)
 			{
-				InvItem invItem = KickStarter.inventoryManager.GetItem (parameter.intValue);
+				InvItem invItem = KickStarter.inventoryManager.GetItem(parameter.intValue);
 				if (invItem != null)
 				{
 					invPrefab = invItem.linkedPrefab;
 				}
 			}
 
-			#if AddressableIsPresent
+#if AddressableIsPresent
 			addressableName = AssignString (parameters, addressableNameParameterID, addressableName);
 			isAwaitingAddressable = false;
-			#endif
+#endif
 
 			switch (invAction)
 			{
@@ -107,33 +107,33 @@ namespace AC
 					}
 					else
 					{
-						_gameObject = AssignFile (parameters, parameterID, 0, gameObject);
+						_gameObject = AssignFile(parameters, parameterID, 0, gameObject);
 					}
 
 					if (invAction == InvAction.Replace)
 					{
-						replaceGameObject = AssignFile (parameters, replaceParameterID, replaceConstantID, replaceGameObject);
+						replaceGameObject = AssignFile(parameters, replaceParameterID, replaceConstantID, replaceGameObject);
 					}
 					else if (invAction == InvAction.Add)
 					{
-						relativeGameObject = AssignFile (parameters, relativeGameObjectParameterID, relativeGameObjectID, relativeGameObject);
+						relativeGameObject = AssignFile(parameters, relativeGameObjectParameterID, relativeGameObjectID, relativeGameObject);
 					}
 					break;
 
 				case InvAction.Remove:
 					if (invPrefab != null)
 					{
-						ConstantID invPrefabConstantID = invPrefab.GetComponent<ConstantID> ();
+						ConstantID invPrefabConstantID = invPrefab.GetComponent<ConstantID>();
 						if (invPrefabConstantID != null && invPrefabConstantID.constantID != 0)
 						{
-							_gameObject = AssignFile (invPrefabConstantID.constantID, _gameObject);
+							_gameObject = AssignFile(invPrefabConstantID.constantID, _gameObject);
 						}
 						else
 						{
-							SceneItem[] sceneItems = UnityVersionHandler.FindObjectsOfType<SceneItem> ();
+							SceneItem[] sceneItems = UnityVersionHandler.FindObjectsOfType<SceneItem>();
 							foreach (SceneItem sceneItem in sceneItems)
 							{
-								if (InvInstance.IsValid (sceneItem.LinkedInvInstance) && sceneItem.LinkedInvInstance.ItemID == parameter.intValue)
+								if (InvInstance.IsValid(sceneItem.LinkedInvInstance) && sceneItem.LinkedInvInstance.ItemID == parameter.intValue)
 								{
 									_gameObject = sceneItem.gameObject;
 									break;
@@ -142,13 +142,13 @@ namespace AC
 
 							if (_gameObject == null)
 							{
-								LogWarning ("Cannot locate scene instance of prefab " + invPrefab + " as it has no Constant ID number");
+								LogWarning("Cannot locate scene instance of prefab " + invPrefab + " as it has no Constant ID number");
 							}
 						}
 					}
 					else
 					{
-						_gameObject = AssignFile (parameters, parameterID, constantID, gameObject);
+						_gameObject = AssignFile(parameters, parameterID, constantID, gameObject);
 					}
 
 					if (_gameObject != null && !_gameObject.activeInHierarchy)
@@ -160,8 +160,8 @@ namespace AC
 				default:
 					break;
 			}
-		
-			relativeVector = AssignVector3 (parameters, relativeVectorParameterID, relativeVector);
+
+			relativeVector = AssignVector3(parameters, relativeVectorParameterID, relativeVector);
 
 			if (invAction == InvAction.Add && positionRelativeTo == PositionRelativeTo.VectorVariable)
 			{
@@ -169,25 +169,25 @@ namespace AC
 				switch (variableLocation)
 				{
 					case VariableLocation.Global:
-						vectorVarID = AssignVariableID (parameters, vectorVarParameterID, vectorVarID);
-						runtimeVariable = GlobalVariables.GetVariable (vectorVarID, true);
+						vectorVarID = AssignVariableID(parameters, vectorVarParameterID, vectorVarID);
+						runtimeVariable = GlobalVariables.GetVariable(vectorVarID, true);
 						break;
 
 					case VariableLocation.Local:
 						if (!isAssetFile)
 						{
-							vectorVarID = AssignVariableID (parameters, vectorVarParameterID, vectorVarID);
-							runtimeVariable = LocalVariables.GetVariable (vectorVarID, localVariables);
+							vectorVarID = AssignVariableID(parameters, vectorVarParameterID, vectorVarID);
+							runtimeVariable = LocalVariables.GetVariable(vectorVarID, localVariables);
 						}
 						break;
 
 					case VariableLocation.Component:
-						Variables runtimeVariables = AssignFile <Variables> (variablesConstantID, variables);
+						Variables runtimeVariables = AssignFile<Variables>(variablesConstantID, variables);
 						if (runtimeVariables != null)
 						{
-							runtimeVariable = runtimeVariables.GetVariable (vectorVarID);
+							runtimeVariable = runtimeVariables.GetVariable(vectorVarID);
 						}
-						runtimeVariable = AssignVariable (parameters, vectorVarParameterID, runtimeVariable);
+						runtimeVariable = AssignVariable(parameters, vectorVarParameterID, runtimeVariable);
 						break;
 				}
 			}
@@ -195,7 +195,7 @@ namespace AC
 			runtimeSpawnedObjectParameter = null;
 			if (invAction == InvAction.Add)
 			{
-				runtimeSpawnedObjectParameter = GetParameterWithID (parameters, spawnedObjectParameterID);
+				runtimeSpawnedObjectParameter = GetParameterWithID(parameters, spawnedObjectParameterID);
 				if (runtimeSpawnedObjectParameter != null && runtimeSpawnedObjectParameter.parameterType != ParameterType.GameObject)
 				{
 					runtimeSpawnedObjectParameter = null;
@@ -204,26 +204,26 @@ namespace AC
 		}
 
 
-		public override void AssignParentList (ActionList actionList)
+		public override void AssignParentList(ActionList actionList)
 		{
 			isInBackground = actionList && actionList.actionListType == ActionListType.RunInBackground;
-			
+
 			if (actionList != null)
 			{
-				localVariables = UnityVersionHandler.GetLocalVariablesOfGameObject (actionList.gameObject);
+				localVariables = UnityVersionHandler.GetLocalVariablesOfGameObject(actionList.gameObject);
 			}
 			if (localVariables == null)
 			{
 				localVariables = KickStarter.localVariables;
 			}
 
-			base.AssignParentList (actionList);
+			base.AssignParentList(actionList);
 		}
-		
-		
-		public override float Run ()
+
+
+		public override float Run()
 		{
-			#if AddressableIsPresent
+#if AddressableIsPresent
 			if (isRunning)
 			{
 				if (isAwaitingAddressable)
@@ -234,13 +234,13 @@ namespace AC
 				isRunning = false;
 				return 0f;
 			}
-			#endif
+#endif
 
-			#if AddressableIsPresent
+#if AddressableIsPresent
 			if (_gameObject == null && !referenceByAddressable)
-			#else
+#else
 			if (_gameObject == null)
-			#endif
+#endif
 			{
 				return 0f;
 			}
@@ -248,7 +248,7 @@ namespace AC
 			switch (invAction)
 			{
 				case InvAction.Add:
-					#if AddressableIsPresent
+#if AddressableIsPresent
 					if (referenceByAddressable)
 					{
 						if (!string.IsNullOrEmpty (addressableName))
@@ -260,59 +260,59 @@ namespace AC
 						}
 					}
 					else
-					#endif
+#endif
 					{
-						InstantiateObject (_gameObject);
+						InstantiateObject(_gameObject);
 					}
 					break;
 
 				case InvAction.Remove:
 					if (_gameObject == null) return 0f;
-					#if AddressableIsPresent
+#if AddressableIsPresent
 					if (!Addressables.ReleaseInstance (_gameObject))
 					{
 						KickStarter.sceneChanger.ScheduleForDeletion (_gameObject);
 					}
-					#else
-					KickStarter.sceneChanger.ScheduleForDeletion (_gameObject);
-					#endif
+#else
+					KickStarter.sceneChanger.ScheduleForDeletion(_gameObject);
+#endif
 					break;
 
 				case InvAction.Replace:
 					{
 						if (replaceGameObject == null)
 						{
-							LogWarning ("Cannot perform swap because the object to remove was not found in the scene.");
+							LogWarning("Cannot perform swap because the object to remove was not found in the scene.");
 							return 0f;
 						}
 
 						Vector3 position = replaceGameObject.transform.position;
 						Quaternion rotation = replaceGameObject.transform.rotation;
 
-						GameObject oldOb = AssignFile (constantID, _gameObject);
+						GameObject oldOb = AssignFile(constantID, _gameObject);
 						if (gameObject.activeInHierarchy || (oldOb != null && oldOb.activeInHierarchy))
 						{
-							Log (_gameObject.name + " won't be instantiated, as it is already present in the scene.", _gameObject);
+							Log(_gameObject.name + " won't be instantiated, as it is already present in the scene.", _gameObject);
 							return 0f;
 						}
 
-						KickStarter.sceneChanger.ScheduleForDeletion (replaceGameObject);
+						KickStarter.sceneChanger.ScheduleForDeletion(replaceGameObject);
 
-						GameObject newObject = Object.Instantiate (_gameObject, position, rotation);
+						GameObject newObject = Object.Instantiate(_gameObject, position, rotation);
 						newObject.name = _gameObject.name;
-						KickStarter.stateHandler.IgnoreNavMeshCollisions ();
+						KickStarter.stateHandler.IgnoreNavMeshCollisions();
 					}
 					break;
 
 				default:
 					break;
-			}	
+			}
 
 			return 0f;
 		}
 
 
-		#if AddressableIsPresent
+#if AddressableIsPresent
 
 		private void OnCompleteAddGameObject (AsyncOperationHandle<GameObject> obj)
 		{
@@ -320,14 +320,14 @@ namespace AC
 			InstantiateObject (obj.Result, true);
 		}
 
-		#endif
+#endif
 
 
-		private void InstantiateObject (GameObject newOb, bool wasSpawnedByAddressable = false)
+		private void InstantiateObject(GameObject newOb, bool wasSpawnedByAddressable = false)
 		{
 			if (newOb == null) return;
 
-			#if AddressableIsPresent
+#if AddressableIsPresent
 			if (wasSpawnedByAddressable)
 			{
 				RememberTransform rememberTransform = newOb.GetComponent<RememberTransform> ();
@@ -353,12 +353,12 @@ namespace AC
 				}
 			}
 			else
-			#endif
+#endif
 			{
-				GameObject oldOb = AssignFile (constantID, newOb);
+				GameObject oldOb = AssignFile(constantID, newOb);
 				if (newOb.activeInHierarchy || (oldOb != null && oldOb.activeInHierarchy))
 				{
-					RememberTransform rememberTransform = oldOb.GetComponent<RememberTransform> ();
+					RememberTransform rememberTransform = oldOb.GetComponent<RememberTransform>();
 
 					if (rememberTransform && rememberTransform.saveScenePresence)
 					{
@@ -368,7 +368,7 @@ namespace AC
 						}
 						else
 						{
-							LogWarning (newOb.name + " cannot be instantiated, as it is already present in the scene.  To allow for multiple instances to be spawned, assign a non-zero value in its Remember Transform component's 'Linked prefab ConstantID' field.", _gameObject);
+							LogWarning(newOb.name + " cannot be instantiated, as it is already present in the scene.  To allow for multiple instances to be spawned, assign a non-zero value in its Remember Transform component's 'Linked prefab ConstantID' field.", _gameObject);
 							return;
 						}
 					}
@@ -421,13 +421,13 @@ namespace AC
 				}
 			}
 
-			GameObject newObject = wasSpawnedByAddressable ? newOb : Object.Instantiate (newOb, position, rotation);
+			GameObject newObject = wasSpawnedByAddressable ? newOb : Object.Instantiate(newOb, position, rotation);
 			if (wasSpawnedByAddressable)
 			{
-				newObject.transform.SetPositionAndRotation (position, rotation);
-				if (newObject.gameObject.name.EndsWith ("(Clone)"))
+				newObject.transform.SetPositionAndRotation(position, rotation);
+				if (newObject.gameObject.name.EndsWith("(Clone)"))
 				{
-					newObject.gameObject.name = newObject.gameObject.name.Substring (0, newObject.gameObject.name.Length - 7);
+					newObject.gameObject.name = newObject.gameObject.name.Substring(0, newObject.gameObject.name.Length - 7);
 				}
 			}
 			else
@@ -435,27 +435,27 @@ namespace AC
 				newObject.name = newOb.name;
 			}
 
-			ConstantID[] remembers = newObject.GetComponentsInChildren<ConstantID> ();
+			ConstantID[] remembers = newObject.GetComponentsInChildren<ConstantID>();
 			foreach (ConstantID remember in remembers)
 			{
-				remember.OnSpawn ();
+				remember.OnSpawn();
 			}
 
 			if (!isInBackground)
 			{
-				KickStarter.actionListManager.RegisterCutsceneSpawnedObject (newObject);
+				KickStarter.actionListManager.RegisterCutsceneSpawnedObject(newObject);
 			}
 
-			KickStarter.stateHandler.IgnoreNavMeshCollisions ();
+			KickStarter.stateHandler.IgnoreNavMeshCollisions();
 
 			if (runtimeSpawnedObjectParameter != null)
 			{
-				runtimeSpawnedObjectParameter.SetValue (newObject);
+				runtimeSpawnedObjectParameter.SetValue(newObject);
 			}
 		}
-		
-		
-		#if UNITY_EDITOR
+
+
+#if UNITY_EDITOR
 		
 		public override void ShowGUI (List<ActionParameter> parameters)
 		{
@@ -467,7 +467,7 @@ namespace AC
 				_label = "Object to delete:";
 			}
 
-			#if AddressableIsPresent
+#if AddressableIsPresent
 			if (invAction == InvAction.Replace)
 			{
 				referenceByAddressable = false;
@@ -488,7 +488,7 @@ namespace AC
 				}
 			}
 			else
-			#endif
+#endif
 			{
 				if (parameterTypes == null || parameterTypes.Length == 0)
 				{
@@ -627,7 +627,7 @@ namespace AC
 			return base.ReferencesObjectOrID (_gameObject, id);
 		}
 		
-		#endif
+#endif
 
 
 		/**
@@ -635,12 +635,12 @@ namespace AC
 		 * <param name = "prefabToAdd">The prefab to spawn</param>
 		 * <returns>The generated Action</returns>
 		 */
-		public static ActionInstantiate CreateNew_Add (GameObject prefabToAdd)
+		public static ActionInstantiate CreateNew_Add(GameObject prefabToAdd)
 		{
-			ActionInstantiate newAction = CreateNew<ActionInstantiate> ();
+			ActionInstantiate newAction = CreateNew<ActionInstantiate>();
 			newAction.invAction = InvAction.Add;
 			newAction.gameObject = prefabToAdd;
-			newAction.TryAssignConstantID (newAction.gameObject, ref newAction.constantID);
+			newAction.TryAssignConstantID(newAction.gameObject, ref newAction.constantID);
 
 			return newAction;
 		}
@@ -651,12 +651,12 @@ namespace AC
 		 * <param name = "objectToRemove">The object to remove</param>
 		 * <returns>The generated Action</returns>
 		 */
-		public static ActionInstantiate CreateNew_Remove (GameObject objectToRemove)
+		public static ActionInstantiate CreateNew_Remove(GameObject objectToRemove)
 		{
-			ActionInstantiate newAction = CreateNew<ActionInstantiate> ();
+			ActionInstantiate newAction = CreateNew<ActionInstantiate>();
 			newAction.invAction = InvAction.Remove;
 			newAction.gameObject = objectToRemove;
-			newAction.TryAssignConstantID (newAction.gameObject, ref newAction.constantID);
+			newAction.TryAssignConstantID(newAction.gameObject, ref newAction.constantID);
 
 			return newAction;
 		}
@@ -668,18 +668,43 @@ namespace AC
 		 * <param name = "objectToRemove">The object to remove</param>
 		 * <returns>The generated Action</returns>
 		 */
-		public static ActionInstantiate CreateNew_Replace (GameObject prefabToAdd, GameObject objectToRemove)
+		public static ActionInstantiate CreateNew_Replace(GameObject prefabToAdd, GameObject objectToRemove)
 		{
-			ActionInstantiate newAction = CreateNew<ActionInstantiate> ();
+			ActionInstantiate newAction = CreateNew<ActionInstantiate>();
 			newAction.invAction = InvAction.Replace;
 			newAction.gameObject = prefabToAdd;
-			newAction.TryAssignConstantID (newAction.gameObject, ref newAction.constantID);
+			newAction.TryAssignConstantID(newAction.gameObject, ref newAction.constantID);
 			newAction.replaceGameObject = objectToRemove;
-			newAction.TryAssignConstantID (newAction.replaceGameObject, ref newAction.replaceConstantID);
+			newAction.TryAssignConstantID(newAction.replaceGameObject, ref newAction.replaceConstantID);
 
 			return newAction;
 		}
-		
+
+
+		#region ITranslatableReferencer
+
+		public ITranslatable[] GetTranslatables()
+		{
+			if (invAction == InvAction.Add || invAction == InvAction.Replace)
+			{
+#if AddressableIsPresent
+				if (referenceByAddressable)
+				{
+					return new ITranslatable[0];
+				}
+#endif
+#if UNITY_EDITOR
+				if (parameterID < 0 && gameObject && UnityVersionHandler.IsPrefabFile(gameObject))
+				{
+					return gameObject.GetComponentsInChildren<ITranslatable>();
+				}
+#endif
+			}
+			return new ITranslatable[0];
+		}
+
+		#endregion
+
 	}
 
 }

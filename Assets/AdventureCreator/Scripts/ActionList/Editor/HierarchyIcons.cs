@@ -11,8 +11,13 @@ namespace AC
 	public class HierarchyIcons
 	{
 
+#if UNITY_6000_5_OR_NEWER
+		private static HashSet<EntityId> actionListIDs;
+		private static HashSet<EntityId> rememberIDs;
+#else
 		private static HashSet<int> actionListIDs;
 		private static HashSet<int> rememberIDs;
+#endif
 
 		private static ActionList[] actionLists;
 		private static ConstantID[] constantIDs;
@@ -38,7 +43,11 @@ namespace AC
 		static HierarchyIcons ()
 		{
 			EditorApplication.update += UpdateCB;
+#if UNITY_6000_5_OR_NEWER
+			EditorApplication.hierarchyWindowItemByEntityIdOnGUI += HierarchyItemCB;
+#else
 			EditorApplication.hierarchyWindowItemOnGUI += HierarchyItemCB;
+#endif
 			EditorApplication.playModeStateChanged += LogPlayModeState;
 			UnityEngine.SceneManagement.SceneManager.activeSceneChanged += ActiveSceneChanged;
 			UnityEngine.SceneManagement.SceneManager.sceneLoaded += SceneManager_sceneLoaded;
@@ -150,10 +159,14 @@ namespace AC
 				actionLists = root.GetComponentsInChildren<ActionList> ();
 			}
 
-			actionListIDs = new HashSet<int> ();
+			actionListIDs = new();
 			foreach (ActionList actionList in actionLists)
 			{
-				actionListIDs.Add (actionList.gameObject.GetInstanceID ());
+#if UNITY_6000_5_OR_NEWER
+				actionListIDs.Add (actionList.gameObject.GetEntityId());
+#else
+				actionListIDs.Add (UnityVersionHandler.GetInstanceID(actionList.gameObject));
+#endif
 			}
 
 			if (ACEditorPrefs.ShowHierarchyIcons == ShowHierarchyIcons.ActionListsOnly)
@@ -170,12 +183,16 @@ namespace AC
 				constantIDs = root.GetComponentsInChildren<ConstantID> ();
 			}
 
-			rememberIDs = new HashSet<int> ();
+			rememberIDs = new();
 			foreach (ConstantID constantID in constantIDs)
 			{
 				if (constantID == null || !constantID.isActiveAndEnabled) continue;
 
-				rememberIDs.Add (constantID.gameObject.GetInstanceID ());
+#if UNITY_6000_5_OR_NEWER
+			    rememberIDs.Add (constantID.gameObject.GetEntityId());
+#else
+				rememberIDs.Add (UnityVersionHandler.GetInstanceID(constantID.gameObject));
+#endif
 			}
 		}
 
@@ -186,7 +203,11 @@ namespace AC
 		}
 
 
+#if UNITY_6000_5_OR_NEWER
+		private static void HierarchyItemCB (EntityId entityId, Rect selectionRect)
+#else
 		private static void HierarchyItemCB (int instanceID, Rect selectionRect)
+#endif	
 		{
 			if (ACEditorPrefs.ShowHierarchyIcons == ShowHierarchyIcons.None)
 			{
@@ -198,13 +219,21 @@ namespace AC
 			r.x = r.width + defaultOffset + ACEditorPrefs.HierarchyIconOffset;
 			r.width = iconWidth;
 
+#if UNITY_6000_5_OR_NEWER
+			if (actionListIDs != null && actionListIDs.Contains (entityId))
+#else
 			if (actionListIDs != null && actionListIDs.Contains (instanceID))
+#endif
 			{
 				foreach (ActionList actionList in actionLists)
 				{
 					if (actionList == null || !actionList.isActiveAndEnabled) continue;
-
-					if (actionList.gameObject.GetInstanceID () == instanceID)
+					
+#if UNITY_6000_5_OR_NEWER
+					if (actionList.gameObject.GetEntityId() == entityId)
+#else
+					if (UnityVersionHandler.GetInstanceID(actionList.gameObject) == instanceID)
+#endif
 					{
 						if (GUI.Button (r, string.Empty, CustomStyles.IconNodes))
 						{
@@ -226,13 +255,21 @@ namespace AC
 			}
 
 			r.x -= rememberOffset;
+#if UNITY_6000_5_OR_NEWER
+			if (rememberIDs != null && rememberIDs.Contains (entityId))
+#else
 			if (rememberIDs != null && rememberIDs.Contains (instanceID))
+#endif
 			{
 				foreach (ConstantID constantID in constantIDs)
 				{
 					if (constantID == null || !constantID.isActiveAndEnabled) continue;
 
-					if (constantID.gameObject.GetInstanceID () == instanceID)
+#if UNITY_6000_5_OR_NEWER
+					if (constantID.gameObject.GetEntityId() == entityId)
+#else
+					if (UnityVersionHandler.GetInstanceID(constantID.gameObject) == instanceID)
+#endif
 					{
 						GUI.Label (r, string.Empty, CustomStyles.IconSave);
 						return;

@@ -1,19 +1,30 @@
 fileFormatVersion: 2
 guid: c6425b4a4281b48cb8a032fe89a8ab28
 AudioImporter:
-  serializedVersion: 6
+  externalObjects: {}
+  serializedVersion: 8
   defaultSettings:
-    loadType: 1
+    serializedVersion: 2
+    loadType: 2
     sampleRateSetting: 0
     sampleRateOverride: 0
     compressionFormat: 1
-    quality: .5
+    quality: 0.5
     conversionMode: 0
+    preloadAudioData: 1
   platformSettingOverrides: {}
   forceToMono: 0
-  preloadAudioData: 1
-  loadInBackground: 0
+  normalize: 1
+  loadInBackground: 1
+  ambisonic: 0
   3D: 0
   userData: 
   assetBundleName: 
   assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 11896
+  packageName: Adventure Creator
+  packageVersion: 1.86.6
+  assetPath: Assets/AdventureCreator/Demo/Audio/Music/Five Card Shuffle.mp3
+  uploadId: 987950

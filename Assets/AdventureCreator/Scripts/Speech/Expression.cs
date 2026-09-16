@@ -74,7 +74,7 @@ namespace AC
 		{
 			label = EditorGUILayout.TextField ("Name:", label);
 			CustomGUILayout.TokenLabel ("[expression:" + label + "]");
-			portraitIcon.ShowGUI (false);
+			portraitIcon.ShowGUI (CursorIconBase.IncludeSize.No);
 			GUILayout.Box (string.Empty, GUILayout.ExpandWidth (true), GUILayout.Height(1));
 		}
 

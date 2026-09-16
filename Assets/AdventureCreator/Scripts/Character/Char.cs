@@ -1,7 +1,7 @@
 /*
  *
  *	Adventure Creator
- *	by Chris Burton, 2013-2024
+ *	by Chris Burton, 2013-2025
  *	
  *	"Char.cs"
  * 
@@ -87,6 +87,7 @@ namespace AC
 		private Expression currentExpression = null;
 
 		public CircleCollider2D CircleCollider { get; private set; }
+		private bool forceSpeech;
 		protected Quaternion newRotation;
 		private Vector3 upDirection = Vector3.up;
 		private float prevHeight;
@@ -224,7 +225,7 @@ namespace AC
 		/** The name of the 'Walk' animation(s), without suffix, used by AnimEngine_SpritesUnity */
 		public string walkAnimSprite = "walk";
 		/** The name of the 'Run' animation(s), without suffix, used by AnimEngine_SpritesUnity */
-		public string runAnimSprite = "run";
+		public string runAnimSprite;
 		/** The name of the 'Talk' animation(s), without suffix, used by AnimEngine_SpritesUnity */
 		public string talkAnimSprite = "talk";
 
@@ -335,8 +336,9 @@ namespace AC
 
 		/** If True, then characters will slow down when walking into walls, if using AnimEngine_Mecanim or AnimEngine_SpritesUnityComplex */
 		public bool doWallReduction = false;
+		[SerializeField] private string wallLayer = "Default";
 		/** The layer that walls are expected to be placed on, if doWallReduction = True */
-		public string wallLayer = "Default";
+		public LayerMask wallLayerMask;
 		/** The distance to keep away from walls, if doWallReduction = True */
 		public float wallDistance = 0.5f;
 		/** If True, and doWallReduction = True, then the wall reduction factor will only affect the Animator move speed float parameter, and not character's actual speed */
@@ -348,16 +350,10 @@ namespace AC
 
 		// Sound variables
 
-		/** The sound to play when walking */
-		public AudioClip walkSound;
-		/** The sound to play when running */
-		public AudioClip runSound;
+		[SerializeField] public AudioClip walkSound;
+		[SerializeField] public AudioClip runSound;
 		/** The sound to play when the character's speech text is scrolling */
 		public AudioClip textScrollClip;
-		/** The Sound child to play all non-speech AudioClips on. Speech AudioClips will be placed on the root GameObject */
-		public Sound soundChild;
-
-		protected AudioSource audioSource;
 		/** The AudioSource from which to play speech audio */
 		public AudioSource speechAudioSource;
 
@@ -547,11 +543,6 @@ namespace AC
 				speechAudioSource = GetComponent<AudioSource> ();
 			}
 
-			if (soundChild && audioSource == null)
-			{
-				audioSource = soundChild.GetComponent<AudioSource> ();
-			}
-
 			if (_rigidbody == null)
 			{
 				_rigidbody = GetComponent<Rigidbody> ();
@@ -569,13 +560,13 @@ namespace AC
 					{
 						ACDebug.LogWarning ("In order to move a sprite-based character (" + gameObject.name + ") in 3D, there must not be a Rigidbody2D component on the base.", gameObject);
 					}
-                    else if (antiGlideMode)
-                    {
-                        _rigidbody2D.bodyType = RigidbodyType2D.Kinematic; // Set to Kinematic
-                        _rigidbody2D = null; // Optional: If you still want to nullify the reference
-                        ACDebug.LogWarning("The use of character " + gameObject.name + "'s Rigidbody2D component is disabled as it conflicts with the 'Only move when sprite changes' feature.", gameObject);
-                    }
-                }
+					else if (antiGlideMode)
+					{
+						UnityVersionHandler.SetRigidbody2DKinematic (_rigidbody2D, true);
+						_rigidbody2D = null;
+						ACDebug.LogWarning ("The use of character " + gameObject.name + "'s Rigidbody2D component is disabled as it conflicts with the 'Only move when sprite changes feature.", gameObject);
+					}
+				}
 			}
 			PhysicsUpdate ();
 
@@ -590,7 +581,6 @@ namespace AC
 			capsuleColliders = GetComponentsInChildren<CapsuleCollider> ();
 
 			AdvGame.AssignMixerGroup (speechAudioSource, SoundType.Speech);
-			AdvGame.AssignMixerGroup (audioSource, SoundType.SFX);
 
 			displayLineID = lineID;
 
@@ -922,14 +912,14 @@ namespace AC
 						}
 						else
 						{
-							nodeThreshold = 0.01f;
+							nodeThreshold = 0f;
 							nodeThresholdSqrd = nodeThreshold * nodeThreshold;
 						}
 					}
 
-					if ((SceneSettings.IsUnity2D () && directionSqrMagnitude < nodeThresholdSqrd) ||
-						(activePath.affectY && directionSqrMagnitude < nodeThresholdSqrd) ||
-						(!activePath.affectY && lookDir.sqrMagnitude < nodeThresholdSqrd))
+					if ((SceneSettings.IsUnity2D () && directionSqrMagnitude <= nodeThresholdSqrd) ||
+						(activePath.affectY && directionSqrMagnitude <= nodeThresholdSqrd) ||
+						(!activePath.affectY && lookDir.sqrMagnitude <= nodeThresholdSqrd))
 					{
 						KickStarter.eventManager.Call_OnCharacterReachNode (this, activePath, targetNode);
 						if (activePath.nodeCommands.Count > targetNode)
@@ -1084,7 +1074,6 @@ namespace AC
 			if (isJumping)
 			{
 				animEngine.PlayJump ();
-				StopStandardAudio ();
 			}
 			else
 			{
@@ -1115,7 +1104,6 @@ namespace AC
 							}
 						}
 
-						StopStandardAudio ();
 						break;
 
 					case CharState.Move:
@@ -1128,11 +1116,9 @@ namespace AC
 							animEngine.PlayWalk ();
 						}
 
-						PlayStandardAudio ();
 						break;
 
 					default:
-						StopStandardAudio ();
 						break;
 				}
 			}
@@ -1373,6 +1359,10 @@ namespace AC
 												newVel.y = -hitDownInfo.normal.y;
 											}*/
 										}
+										else if (activePath && activePath.affectY)
+										{
+											simulatedVerticalSpeed = 0f;
+										}
 										else
 										{
 											simulatedVerticalSpeed -= simulatedMass * Time.deltaTime;
@@ -1386,7 +1376,10 @@ namespace AC
 										}
 									}
 
-									_characterController.Move (newVel * _deltaTime);
+									if (_characterController.enabled)
+									{
+										_characterController.Move (newVel * _deltaTime);
+									}
 								}
 								else if (retroPathfinding && IsMovingAlongPath ())
 								{
@@ -1416,7 +1409,7 @@ namespace AC
 					{
 						if (_characterController && rootMotionType != RootMotionType.ThreeD)
 						{
-							if (!_characterController.isGrounded && !ignoreGravity)
+							if (!_characterController.isGrounded && !ignoreGravity && !(activePath && activePath.affectY))
 							{
 								simulatedVerticalSpeed -= simulatedMass * Time.deltaTime;
 
@@ -1425,7 +1418,10 @@ namespace AC
 									simulatedVerticalSpeed = 0f;
 								}
 
-								_characterController.Move (simulatedVerticalSpeed * Time.deltaTime * -Physics.gravity);
+								if (_characterController.enabled)
+								{
+									_characterController.Move (simulatedVerticalSpeed * Time.deltaTime * -Physics.gravity);
+								}
 							}
 						}
 					}
@@ -1497,19 +1493,19 @@ namespace AC
 			{
 				if (GetRootMotionType () == RootMotionType.None)
 				{
-                    if (_rigidbody2D.bodyType == RigidbodyType2D.Kinematic) // Check if the body type is Kinematic
-                    {
-                        _rigidbody2D.MovePosition(transform.position + newVel * Time.deltaTime); // Move the Rigidbody2D
-                    }
-                    else
-                    {
-                        Vector3 force = CalcForce(newVel, 0f, _rigidbody2D.mass, _rigidbody2D.linearVelocity); // Calculate the force based on new velocity and mass
-                        _rigidbody2D.AddForce(force); // Apply the calculated force
-                    }
-                }
+					if (UnityVersionHandler.GetRigidbody2DKinematic (_rigidbody2D))
+					{
+						_rigidbody2D.MovePosition (Transform.position + newVel * Time.deltaTime);
+					}
+					else
+					{
+						Vector3 force = CalcForce (newVel, 0f, _rigidbody2D.mass, UnityVersionHandler.GetRigidbody2DVelocity (_rigidbody2D));
+						_rigidbody2D.AddForce (force);
+					}
+				}
 
 
-                bool xFrozen = false;
+				bool xFrozen = false;
 				bool yFrozen = false;
 
 				if (freezeRigidbodyWhenIdle)
@@ -1765,6 +1761,7 @@ namespace AC
 		 */
 		public void SetRotation (Quaternion _rotation)
 		{
+			if (_rigidbody && useRigidbodyForMovement) _rigidbody.MoveRotation(_rotation);
 			TransformRotation = _rotation;
 			SetLookDirection (TransformForward, true);
 		}
@@ -1776,8 +1773,7 @@ namespace AC
 		 */
 		public void SetRotation (float angle)
 		{
-			TransformRotation = Quaternion.AngleAxis (angle, UpDirection);
-			SetLookDirection (TransformForward, true);
+			SetRotation(Quaternion.AngleAxis (angle, UpDirection));
 		}
 
 
@@ -1951,7 +1947,7 @@ namespace AC
 				}
 
 				Vector2 origin = (Vector2) Transform.position + (Vector2) wallRayOrigin + (forwardVector * wallRayForward);
-				RaycastHit2D hit = UnityVersionHandler.Perform2DRaycast (origin, forwardVector, wallDistance, 1 << LayerMask.NameToLayer (wallLayer));
+				RaycastHit2D hit = UnityVersionHandler.Perform2DRaycast (origin, forwardVector, wallDistance, WallLayerMask);
 
 				if (hit.collider)
 				{
@@ -1968,7 +1964,7 @@ namespace AC
 
 				Vector3 origin = Transform.position + wallRayOrigin + (TransformForward * wallRayForward);
 				RaycastHit hit;
-				if (Physics.Raycast (origin, TransformForward, out hit, wallDistance, 1 << LayerMask.NameToLayer (wallLayer)))
+				if (Physics.Raycast (origin, TransformForward, out hit, wallDistance, WallLayerMask))
 				{
 					wallReductionFactor = wallReductionLerp.Update (wallReductionFactor, (hit.point - origin).magnitude / wallDistance, 10f);
 				}
@@ -2988,60 +2984,6 @@ namespace AC
 		}
 
 
-		private void StopStandardAudio ()
-		{
-			if (audioSource && audioSource.isPlaying)
-			{
-				if ((runSound && audioSource.clip == runSound) || (walkSound && audioSource.clip == walkSound))
-				{
-					audioSource.Stop ();
-				}
-			}
-		}
-
-
-		private void PlayStandardAudio ()
-		{
-			if (audioSource)
-			{
-				if (isRunning && runSound)
-				{
-					if (audioSource.isPlaying && audioSource.clip == runSound)
-					{
-						return;
-					}
-
-					if (!IsGrounded ())
-					{
-						return;
-					}
-
-					audioSource.loop = false;
-					audioSource.clip = runSound;
-					audioSource.Play ();
-					if (KickStarter.eventManager) KickStarter.eventManager.Call_OnPlayFootstepSound (this, null, false, audioSource, runSound);
-				}
-				else if (walkSound)
-				{
-					if (audioSource.isPlaying && audioSource.clip == walkSound)
-					{
-						return;
-					}
-
-					if (!IsGrounded ())
-					{
-						return;
-					}
-
-					audioSource.loop = false;
-					audioSource.clip = walkSound;
-					audioSource.Play ();
-					if (KickStarter.eventManager) KickStarter.eventManager.Call_OnPlayFootstepSound (this, null, true, audioSource, walkSound);
-				}
-			}
-		}
-
-
 		public void ResetAnimationEngine ()
 		{
 			string className = "AnimEngine";
@@ -3803,11 +3745,30 @@ namespace AC
 		}
 
 
-		private void OnStopSpeech (Speech speech)
+		private void OnStopSpeech(Speech speech)
 		{
-			if (speech == activeSpeech || speech.GetSpeakingCharacter () == this)
+			if (KickStarter.actionListManager.AreAnyListsSkipping())
 			{
-				activeSpeech = null;
+				// Old code
+				if (speech == activeSpeech || speech.GetSpeakingCharacter() == this)
+				{
+					activeSpeech = null;
+				}
+			}
+			else
+			{
+				if (speech == activeSpeech)
+				{
+					StartCoroutine(StopSpeechNextFrame());
+					IEnumerator StopSpeechNextFrame()
+					{
+						yield return null;
+						if (speech == activeSpeech)
+						{
+							activeSpeech = null;
+						}
+					}
+				}
 			}
 		}
 
@@ -4841,7 +4802,17 @@ namespace AC
 		{
 			get
 			{
-				return (activeSpeech != null && activeSpeech.IsAnimating ());
+				return forceSpeech || (activeSpeech != null && activeSpeech.IsAnimating ());
+			}
+		}
+
+
+		/** Manually marks the character as speaking, even if they have no actual speech. This may be useful when using a separate dialogue system that should still cause the character to animate */
+		public bool ForceTalkingMode
+		{
+			set
+			{
+				forceSpeech = value;
 			}
 		}
 
@@ -4874,6 +4845,24 @@ namespace AC
 			set
 			{
 				upDirection = value;
+			}
+		}
+
+
+		public LayerMask WallLayerMask
+		{
+			get
+			{
+				if ((wallLayerMask.value == 0) && !string.IsNullOrEmpty (wallLayer))
+				{
+					wallLayerMask = 1 << LayerMask.NameToLayer (wallLayer);
+					wallLayer = string.Empty;
+				}
+				return wallLayerMask;
+			}
+			set
+			{
+				wallLayerMask = value;
 			}
 		}
 

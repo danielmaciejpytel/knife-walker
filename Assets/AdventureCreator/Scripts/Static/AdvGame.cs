@@ -33,6 +33,12 @@ namespace AC
 		#endif
 
 
+		public static float Remap (float value, float from1, float to1, float from2, float to2)
+		{
+			return (value - from1) / (to1 - from1) * (to2 - from2) + from2;
+		}
+		
+
 		/**
 		 * <summary>Sets the volume of an Audio Mixer Group (Unity 5 and onward only).</summary>
 		 * <param name = "audioMixerGroup">The Audio Mixer Group to affect</param>
@@ -644,6 +650,57 @@ namespace AC
 											}
 										}
 									}
+								}
+							}
+						}
+					}
+
+					// Timers
+					tokenStart = "[timer:";
+					tokenIndex = _text.IndexOf (tokenStart);
+					if (tokenIndex >= 0)
+					{
+						tokenValueStartIndex = tokenIndex + tokenStart.Length;
+						tokenValueEndIndex = _text.Substring (tokenValueStartIndex).IndexOf ("]");
+
+						if (tokenValueEndIndex > 0)
+						{
+							string stringValue = _text.Substring (tokenValueStartIndex, tokenValueEndIndex);
+							int _timerID = -1;
+							if (int.TryParse (stringValue, out _timerID))
+							{
+								Timer timer = KickStarter.variablesManager.GetTimer (_timerID);
+								if (timer != null)
+								{
+									string fullToken = tokenStart + stringValue + "]";
+									string timerValue = timer.GetFormattedValue ();
+									_text = _text.Replace (fullToken, timerValue);
+									numIterations = 2;
+								}
+							}
+						}
+					}
+
+					// Scene attributes
+					tokenStart = "[scene:";
+					tokenIndex = _text.IndexOf (tokenStart);
+					if (tokenIndex >= 0)
+					{
+						tokenValueStartIndex = tokenIndex + tokenStart.Length;
+						tokenValueEndIndex = _text.Substring (tokenValueStartIndex).IndexOf ("]");
+
+						if (tokenValueEndIndex > 0)
+						{
+							string stringValue = _text.Substring (tokenValueStartIndex, tokenValueEndIndex);
+							int _varID = -1;
+							if (int.TryParse (stringValue, out _varID))
+							{
+								var attribute = KickStarter.sceneSettings.GetAttribute(_varID);
+								if (attribute != null)
+								{
+									string fullToken = tokenStart + stringValue + "]";
+									_text = _text.Replace (fullToken, attribute.GetValue (languageNumber));
+									numIterations = 2;
 								}
 							}
 						}

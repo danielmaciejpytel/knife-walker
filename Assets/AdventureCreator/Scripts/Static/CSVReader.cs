@@ -149,7 +149,7 @@ namespace AC
 		}
 		
 
-		static public string CreateCSVGrid (List<string[]> contents)
+		static public string CreateCSVGrid (List<string[]> contents, bool alwaysAddQuotes = false)
 		{
 			#if UNITY_EDITOR
 			CSVFormat format = ACEditorPrefs.CSVFormat;
@@ -195,7 +195,7 @@ namespace AC
 							{
 								string cellText = contents[row][col];
 
-								bool doTextDelimiting = cellText.Contains (fieldSeparator) || cellText.Contains (textSeparator);
+								bool doTextDelimiting = cellText.Contains (fieldSeparator) || cellText.Contains (textSeparator) || alwaysAddQuotes;
 								bool doubleQuotes = cellText.Contains (textSeparator);
 
 								if (doubleQuotes)
